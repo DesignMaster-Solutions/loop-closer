@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop Closer · every actionable screening result reaches care</title>
+<meta name="description" content="Prototype for the Future Health Digital Innovation Challenge (Population Health 05): case visibility, ownership, SLAs, patient messages in English and Arabic, and clinician-only closure.">
+<style>
+  :root { --ink:#13212b; --mute:#5b6b75; --line:#d9e1e5; --bg:#f6f8f7; --teal:#0f766e; --red:#b42318; --amber:#b45309; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); }
+  header { padding:20px 24px 12px; border-bottom:1px solid var(--line); background:#fff; }
+  h1 { margin:0; font-size:20px; } header p { margin:4px 0 0; color:var(--mute); }
+  .kpis { display:flex; gap:24px; flex-wrap:wrap; padding:14px 24px; }
+  .kpi b { display:block; font-size:22px; } .kpi span { color:var(--mute); font-size:13px; }
+  main { display:grid; grid-template-columns:minmax(300px, 420px) 1fr; gap:16px; padding:0 24px 24px; }
+  @media (max-width:820px) { main { grid-template-columns:1fr; } }
+  section { background:#fff; border:1px solid var(--line); border-radius:8px; padding:14px; }
+  h2 { font-size:15px; margin:0 0 10px; }
+  .row { display:block; width:100%; text-align:left; border:0; border-top:1px solid var(--line); background:none; padding:10px 4px; cursor:pointer; font:inherit; color:inherit; }
+  .row:hover, .row[aria-current=true] { background:#eef5f4; }
+  .row small { color:var(--mute); display:block; }
+  .tag { display:inline-block; font-size:12px; padding:1px 7px; border-radius:10px; margin-right:4px; background:#eef1f3; }
+  .tag.escalate { background:#fde8e6; color:var(--red); } .tag.overdue { background:#fdf0e1; color:var(--amber); }
+  .tag.referral-rejected { background:#fde8e6; color:var(--red); }
+  ol.tl { list-style:none; margin:0; padding:0; }
+  ol.tl li { padding:6px 0 6px 22px; position:relative; border-left:2px solid var(--line); margin-left:6px; }
+  ol.tl li::before { content:""; position:absolute; left:-7px; top:10px; width:12px; height:12px; border-radius:50%; background:var(--line); }
+  ol.tl li.done::before { background:var(--teal); } ol.tl li.now::before { background:var(--amber); }
+  ol.tl small { color:var(--mute); }
+  pre { white-space:pre-wrap; background:#f3f6f5; padding:10px; border-radius:6px; font:14px/1.5 system-ui, sans-serif; }
+  pre[lang=ar] { direction:rtl; text-align:right; }
+  .note { color:var(--mute); font-size:13px; }
+  button.act { font:inherit; padding:6px 12px; border-radius:6px; border:1px solid var(--teal); background:var(--teal); color:#fff; cursor:pointer; }
+  button.act[disabled] { opacity:.45; cursor:not-allowed; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Loop Closer</h1>
+  <p>Every actionable screening result has an owner, a due date and a documented closure. Simulated cohort, no real patient data.</p>
+</header>
+<div class="kpis" id="kpis"></div>
+<main>
+  <section>
+    <h2>Needs a human today <span class="note" id="count"></span></h2>
+    <div id="list"></div>
+  </section>
+  <section id="detail"><p class="note">Pick a case.</p></section>
+</main>
+<script type="module">
+import { STEPS, status, canClose, close, worklist, patientMessage, metrics } from './loop.mjs';
+import { cohort } from './cases.mjs';
+
+const NOW = '2026-11-15T09:00:00Z';
+let cases = cohort(NOW);
+const $ = (s) => document.querySelector(s);
+const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+const day = (iso) => iso ? iso.slice(0, 10) : '';
+
+function render(sel) {
+  const m = metrics(cases, NOW);
+  $('#kpis').innerHTML = [
+    [m.total, 'actionable results'], [m.closed, 'closed with evidence'], [m.overdue, 'overdue now'],
+    [m.medianDaysToSpecialist?.toFixed(0) ?? '-', 'median days to specialist'],
+  ].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
+  const wl = worklist(cases, NOW);
+  $('#count').textContent = `(${wl.length})`;
+  $('#list').innerHTML = wl.map(({ c, s }) => `<button class="row" data-id="${c.id}" aria-current="${c.id === sel}">
+    <b>${c.id}</b> · ${esc(c.program)} · ${c.urgency}<br>
+    ${s.flags.map((f) => `<span class="tag ${f}">${f}</span>`).join('')}
+    <small>Next: ${esc(s.nextLabel)} · ${esc(s.owner ?? 'no owner (' + s.role + ')')} · due ${day(s.dueAt)}</small></button>`).join('');
+  if (sel) detail(cases.find((c) => c.id === sel));
+}
+
+function detail(c) {
+  const s = status(c, NOW);
+  const done = new Map(c.events.map((e) => [e.step, e]));
+  const tl = STEPS.map((st) => {
+    const e = st.id === 'issued' ? { at: c.issuedAt, by: c.program } : done.get(st.id);
+    const cls = e ? 'done' : st.id === s.next ? 'now' : '';
+    const who = e ? `${day(e.at)} · ${esc(e.by ?? '')}${e.evidence ? ' · ' + esc(e.evidence) : ''}`
+      : st.id === s.next ? `due ${day(s.dueAt)} · ${esc(s.owner ?? 'UNASSIGNED: ' + st.owner)}` : esc(c.owner?.[st.id] ?? st.owner);
+    return `<li class="${cls}">${esc(st.label)}<br><small>${who}</small></li>`;
+  }).join('');
+  const check = canClose(c);
+  const msg = patientMessage(c, NOW, c.lang);
+  $('#detail').innerHTML = `<h2>${c.id} · ${esc(c.finding)} → ${esc(c.confirm)} → ${esc(c.specialist)} (${c.urgency})</h2>
+    <ol class="tl">${tl}</ol>
+    ${msg ? `<h2 style="margin-top:14px">Message the patient sees (${c.lang === 'ar' ? 'Arabic' : 'English'})</h2><pre lang="${c.lang}">${esc(msg)}</pre>` : ''}
+    ${s.next ? `<p><button class="act" id="close" ${check.ok ? '' : 'disabled'}>Close case (clinician sign-off)</button>
+      <span class="note">${check.ok ? 'All steps documented.' : 'Cannot close: ' + esc(check.reason)}</span></p>` : '<p class="note">Closed.</p>'}`;
+  $('#close')?.addEventListener('click', () => {
+    const i = cases.indexOf(c);
+    cases[i] = close(c, { name: c.owner?.closed ?? 'Case owner', clinician: true }, NOW);
+    render(c.id);
+  });
+}
+
+$('#list').addEventListener('click', (e) => { const b = e.target.closest('.row'); if (b) render(b.dataset.id); });
+render(worklist(cases, NOW)[0]?.c.id);
+</script>
+</body>
+</html>

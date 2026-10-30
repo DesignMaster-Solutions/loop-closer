@@ -1,0 +1,8 @@
+video/*.png
+!video/eq.png
+!video/grid.png
+!video/broken.png
+!video/fixed.png
+video/*.aiff
+video/*.mp4
+video/list.txt

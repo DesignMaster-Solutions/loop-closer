@@ -1,0 +1,8 @@
+{
+  "name": "loop-closer",
+  "version": "0.1.0",
+  "description": "Every actionable screening result gets an owner, a due date, a patient message in English or Arabic and a clinician-only, evidence-backed closure. Future Health Digital Innovation Challenge 2026, Population Health 05.",
+  "type": "module",
+  "scripts": { "test": "node --test test/", "deploy": "wrangler deploy" },
+  "license": "MIT"
+}
