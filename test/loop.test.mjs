@@ -97,3 +97,9 @@ test('scenario: same cohort, surfacing exceptions closes more cases than leaving
   assert.ok(on.stalled < off.stalled);
   assert.deepEqual(cohort(now, 60, 7, 0.8).map((c) => c.urgency), cohort(now, 60, 7, 0).map((c) => c.urgency));
 });
+
+test('Arabic message has no English step or role left in it', () => {
+  const msg = patientMessage({ ...base, owner: { ...base.owner, notified: null } }, '2026-11-01T10:00:00Z', 'ar');
+  assert.doesNotMatch(msg, /Patient notified|Screening program/);
+  assert.match(msg, /إبلاغ المريض/);
+});

@@ -1,8 +1,6 @@
-video/*.png
-!video/eq.png
-!video/grid.png
-!video/broken.png
-!video/fixed.png
+node_modules
+.wrangler
+video/s*.png
 video/*.aiff
-video/*.mp4
+video/s*.mp4
 video/list.txt

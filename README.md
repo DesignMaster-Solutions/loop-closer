@@ -4,6 +4,8 @@ Prototype for the **Future Health Digital Innovation Challenge 2026**, Populatio
 
 Live demo: https://loop-closer.designmaster.workers.dev (simulated cohort, no real patient data)
 
+Deck: [docs/LoopCloser-deck.pdf](docs/LoopCloser-deck.pdf). Demo video: docs/demo.mp4 (rebuild with `video/make.py`).
+
 ## What it does
 
 Every actionable screening result becomes a case that walks one pathway:

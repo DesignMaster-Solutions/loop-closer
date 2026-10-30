@@ -99,11 +99,19 @@ const MSG = {
   },
 };
 
+const AR = {
+  notified: 'إبلاغ المريض', acknowledged: 'تأكيد فهم النتيجة', confirmatory: 'إجراء الفحص التأكيدي', referred: 'إرسال الإحالة',
+  accepted: 'قبول الإحالة', appointed: 'حضور الموعد', care: 'خطة العلاج أو المتابعة', closed: 'إغلاق الحالة بالوثائق',
+  'Screening program': 'برنامج الفحص', 'Care navigator': 'منسق الرعاية', 'Primary care': 'الرعاية الأولية',
+  'Specialist service': 'الخدمة التخصصية', 'Case owner (clinician)': 'الطبيب المسؤول عن الحالة',
+};
+
 export function patientMessage(c, now, lang = 'en') {
   const m = MSG[lang] ?? MSG.en;
   const s = status(c, now);
   if (!s.next) return null;
-  return [m[c.urgency], `${m.next}: ${s.nextLabel}`, `${m.who}: ${s.owner ?? s.role}`, s.flags.includes('overdue') ? m.late : `${m.by}: ${s.dueAt.slice(0, 10)}`, m.ok].join('\n');
+  const ar = lang === 'ar';
+  return [m[c.urgency], `${m.next}: ${ar ? AR[s.next] : s.nextLabel}`, `${m.who}: ${s.owner ?? (ar ? AR[s.role] : s.role)}`, s.flags.includes('overdue') ? m.late : `${m.by}: ${s.dueAt.slice(0, 10)}`, m.ok].join('\n');
 }
 
 // Program metrics on a set of cases: the closure and patient-journey measures named by the challenge.
