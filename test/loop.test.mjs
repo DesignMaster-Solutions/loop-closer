@@ -65,3 +65,9 @@ test('simulated cohort is reproducible and produces a real worklist', () => {
     assert.ok(c.events.find((e) => e.step === 'care')?.evidence, `${c.id} closed without evidence`);
   }
 });
+
+test('overdue case never shows the patient a past due date', () => {
+  const msg = patientMessage(base, '2026-11-05T10:00:00Z', 'en');
+  assert.doesNotMatch(msg, /By: 2026-11-02/);
+  assert.match(msg, /care team has been alerted/);
+});

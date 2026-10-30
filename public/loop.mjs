@@ -76,13 +76,13 @@ const MSG = {
     urgent: 'Your screening result needs a follow-up soon. This is not a diagnosis.',
     priority: 'Your screening result needs a follow-up. This is not a diagnosis.',
     routine: 'Your screening result needs a routine follow-up. This is not a diagnosis.',
-    next: 'Next step', who: 'Who is looking after you', by: 'By', ok: 'Reply 1 if you understood, 2 to talk to a nurse.',
+    next: 'Next step', who: 'Who is looking after you', by: 'By', late: 'This step is late. Your care team has been alerted and will contact you.', ok: 'Reply 1 if you understood, 2 to talk to a nurse.',
   },
   ar: {
     urgent: 'نتيجة الفحص تحتاج إلى متابعة قريبًا. هذا ليس تشخيصًا.',
     priority: 'نتيجة الفحص تحتاج إلى متابعة. هذا ليس تشخيصًا.',
     routine: 'نتيجة الفحص تحتاج إلى متابعة روتينية. هذا ليس تشخيصًا.',
-    next: 'الخطوة التالية', who: 'المسؤول عن متابعتك', by: 'قبل', ok: 'أرسل 1 إذا فهمت، أو 2 للتحدث مع ممرضة.',
+    next: 'الخطوة التالية', who: 'المسؤول عن متابعتك', by: 'قبل', late: 'هذه الخطوة متأخرة. تم تنبيه فريق الرعاية وسيتواصل معك.', ok: 'أرسل 1 إذا فهمت، أو 2 للتحدث مع ممرضة.',
   },
 };
 
@@ -90,7 +90,7 @@ export function patientMessage(c, now, lang = 'en') {
   const m = MSG[lang] ?? MSG.en;
   const s = status(c, now);
   if (!s.next) return null;
-  return [m[c.urgency], `${m.next}: ${s.nextLabel}`, `${m.who}: ${s.owner ?? s.role}`, `${m.by}: ${s.dueAt.slice(0, 10)}`, m.ok].join('\n');
+  return [m[c.urgency], `${m.next}: ${s.nextLabel}`, `${m.who}: ${s.owner ?? s.role}`, s.flags.includes('overdue') ? m.late : `${m.by}: ${s.dueAt.slice(0, 10)}`, m.ok].join('\n');
 }
 
 // Program metrics on a set of cases: how many closed, where they stall.
