@@ -21,10 +21,13 @@ export const SLA_HOURS = {
   routine: { notified: 7 * 24, acknowledged: 14 * 24, confirmatory: 42 * 24, referred: 7 * 24, accepted: 10 * 24, appointed: 90 * 24, care: 30 * 24, closed: 30 * 24 },
 };
 
+// Hours a patient-to-clinician or clinician-to-clinician question may wait for an answer. Illustrative too.
+export const CONSULT_SLA_HOURS = { urgent: 4, priority: 24, routine: 72 };
+
 const H = 3600e3;
 const idx = (id) => STEPS.findIndex((s) => s.id === id);
 
-// A case: { id, urgency, issuedAt, events: [{ step, at, by, evidence? }], owner?, referral?: 'rejected' }
+// A case: { id, urgency, issuedAt, events: [{ step, at, by, evidence? }], owner?, referral?: 'rejected', consults?, stall? }
 export function status(c, now) {
   const done = c.events.filter((e) => idx(e.step) >= 0).sort((a, b) => idx(a.step) - idx(b.step));
   const last = done.length ? done[done.length - 1] : { step: 'issued', at: c.issuedAt };
@@ -37,6 +40,7 @@ export function status(c, now) {
   if (!owner) flags.push('unassigned');
   if (new Date(now) > new Date(dueAt)) flags.push('overdue');
   if (next.id === 'accepted' && c.referral === 'rejected') flags.push('referral-rejected');
+  if (c.consults?.some((q) => !q.answer && new Date(now) - new Date(q.at) > CONSULT_SLA_HOURS[c.urgency] * H)) flags.push('consult-waiting');
   if (c.urgency === 'urgent' && flags.length) flags.push('escalate');
   return { stage: last.step, next: next.id, nextLabel: next.label, role: next.owner, owner, dueAt, flags };
 }
@@ -58,7 +62,16 @@ export function close(c, by, at) {
   return { ...c, events: [...c.events, { step: 'closed', at, by: by.name }] };
 }
 
-const RANK = { escalate: 0, 'referral-rejected': 1, overdue: 2, unassigned: 3 };
+// kind: 'patient-to-clinician' (the patient replied 2) or 'clinician-to-clinician' (e-consult across providers).
+export function requestConsult(c, { kind, from, to, question }, at) {
+  return { ...c, consults: [...(c.consults ?? []), { kind, from, to, question, at }] };
+}
+
+export function answerConsult(c, i, answer, by, at) {
+  return { ...c, consults: c.consults.map((q, k) => (k === i ? { ...q, answer, by, answeredAt: at } : q)) };
+}
+
+const RANK = { escalate: 0, 'referral-rejected': 1, 'consult-waiting': 2, overdue: 3, unassigned: 4 };
 const U = { urgent: 0, priority: 1, routine: 2 };
 
 // The exception queue a coordinator works every morning: only cases that need a human.
@@ -93,23 +106,28 @@ export function patientMessage(c, now, lang = 'en') {
   return [m[c.urgency], `${m.next}: ${s.nextLabel}`, `${m.who}: ${s.owner ?? s.role}`, s.flags.includes('overdue') ? m.late : `${m.by}: ${s.dueAt.slice(0, 10)}`, m.ok].join('\n');
 }
 
-// Program metrics on a set of cases: how many closed, where they stall.
+// Program metrics on a set of cases: the closure and patient-journey measures named by the challenge.
 export function metrics(cases, now) {
-  const stuck = {};
-  let closed = 0, overdue = 0;
-  const days = [];
+  const waitingAt = {}, stallReasons = {}, days = [];
+  let closed = 0, overdue = 0, stalled = 0;
+  const reached = (id) => cases.filter((c) => c.events.some((e) => e.step === id)).length;
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
   for (const c of cases) {
     const s = status(c, now);
-    if (s.stage === 'closed') {
-      closed++;
-      const appt = c.events.find((e) => e.step === 'appointed');
-      if (appt) days.push((new Date(appt.at) - new Date(c.issuedAt)) / (24 * H));
-    } else {
-      stuck[s.next] = (stuck[s.next] ?? 0) + 1;
-      if (s.flags.includes('overdue')) overdue++;
-    }
+    const appt = c.events.find((e) => e.step === 'appointed');
+    if (appt) days.push((new Date(appt.at) - new Date(c.issuedAt)) / (24 * H));
+    if (s.stage === 'closed') { closed++; continue; }
+    waitingAt[s.next] = (waitingAt[s.next] ?? 0) + 1;
+    if (s.flags.includes('overdue')) overdue++;
+    if (c.stall) { stalled++; stallReasons[c.stall] = (stallReasons[c.stall] ?? 0) + 1; }
   }
   days.sort((a, b) => a - b);
-  const median = days.length ? days[Math.floor(days.length / 2)] : null;
-  return { total: cases.length, closed, overdue, medianDaysToSpecialist: median, waitingAt: stuck };
+  return {
+    total: cases.length, closed, overdue, stalled, unresolved: cases.length - closed,
+    medianDaysToSpecialist: days.length ? days[Math.floor(days.length / 2)] : null,
+    notifiedPct: pct(reached('notified'), cases.length),
+    acknowledgedPct: pct(reached('acknowledged'), reached('notified')),
+    referralCompletionPct: pct(reached('appointed'), reached('referred')),
+    waitingAt, stallReasons,
+  };
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { status, canClose, close, worklist, patientMessage, metrics } from '../public/loop.mjs';
+import { status, canClose, close, worklist, patientMessage, metrics, requestConsult, answerConsult } from '../public/loop.mjs';
 import { cohort } from '../public/cases.mjs';
 
 const base = {
@@ -70,4 +70,30 @@ test('overdue case never shows the patient a past due date', () => {
   const msg = patientMessage(base, '2026-11-05T10:00:00Z', 'en');
   assert.doesNotMatch(msg, /By: 2026-11-02/);
   assert.match(msg, /care team has been alerted/);
+});
+
+test('unanswered consult is flagged after its service level and clears when answered', () => {
+  const c = requestConsult(base, { kind: 'clinician-to-clinician', from: 'GP', to: 'Spec', question: 'Colonoscopy or CT?' }, '2026-11-01T09:00:00Z');
+  assert.ok(!status(c, '2026-11-01T12:00:00Z').flags.includes('consult-waiting'));
+  assert.ok(status(c, '2026-11-02T12:00:00Z').flags.includes('consult-waiting'));
+  const a = answerConsult(c, 0, 'Colonoscopy', 'Spec', '2026-11-02T13:00:00Z');
+  assert.ok(!status(a, '2026-11-02T14:00:00Z').flags.includes('consult-waiting'));
+  assert.equal(base.consults, undefined);
+});
+
+test('metrics report completion rates, unresolved results and why cases stalled', () => {
+  const now = '2026-11-15T09:00:00Z';
+  const m = metrics(cohort(now), now);
+  assert.ok(m.notifiedPct > 0 && m.notifiedPct <= 100);
+  assert.ok(m.referralCompletionPct > 0 && m.referralCompletionPct <= 100);
+  assert.equal(m.unresolved, m.total - m.closed);
+  assert.ok(Object.keys(m.stallReasons).length > 0);
+});
+
+test('scenario: same cohort, surfacing exceptions closes more cases than leaving them silent', () => {
+  const now = '2026-11-15T09:00:00Z';
+  const off = metrics(cohort(now, 60, 7, 0), now), on = metrics(cohort(now, 60, 7, 0.8), now);
+  assert.ok(on.closed > off.closed, `${on.closed} > ${off.closed}`);
+  assert.ok(on.stalled < off.stalled);
+  assert.deepEqual(cohort(now, 60, 7, 0.8).map((c) => c.urgency), cohort(now, 60, 7, 0).map((c) => c.urgency));
 });

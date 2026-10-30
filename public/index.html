@@ -23,6 +23,7 @@
   .tag { display:inline-block; font-size:12px; padding:1px 7px; border-radius:10px; margin-right:4px; background:#eef1f3; }
   .tag.escalate { background:#fde8e6; color:var(--red); } .tag.overdue { background:#fdf0e1; color:var(--amber); }
   .tag.referral-rejected { background:#fde8e6; color:var(--red); }
+  .tag.consult-waiting { background:#fdf0e1; color:var(--amber); }
   ol.tl { list-style:none; margin:0; padding:0; }
   ol.tl li { padding:6px 0 6px 22px; position:relative; border-left:2px solid var(--line); margin-left:6px; }
   ol.tl li::before { content:""; position:absolute; left:-7px; top:10px; width:12px; height:12px; border-radius:50%; background:var(--line); }
@@ -32,6 +33,7 @@
   pre[lang=ar] { direction:rtl; text-align:right; }
   .note { color:var(--mute); font-size:13px; }
   button.act { font:inherit; padding:6px 12px; border-radius:6px; border:1px solid var(--teal); background:var(--teal); color:#fff; cursor:pointer; }
+  button.act.alt { background:#fff; color:var(--teal); }
   button.act[disabled] { opacity:.45; cursor:not-allowed; }
 </style>
 </head>
@@ -41,6 +43,7 @@
   <p>Every actionable screening result has an owner, a due date and a documented closure. Simulated cohort, no real patient data.</p>
 </header>
 <div class="kpis" id="kpis"></div>
+<p class="note" id="scenario" style="margin:0;padding:0 24px 14px"></p>
 <main>
   <section>
     <h2>Needs a human today <span class="note" id="count"></span></h2>
@@ -49,11 +52,12 @@
   <section id="detail"><p class="note">Pick a case.</p></section>
 </main>
 <script type="module">
-import { STEPS, status, canClose, close, worklist, patientMessage, metrics } from './loop.mjs';
+import { STEPS, status, canClose, close, worklist, patientMessage, metrics, requestConsult, answerConsult } from './loop.mjs';
 import { cohort } from './cases.mjs';
 
 const NOW = '2026-11-15T09:00:00Z';
 let cases = cohort(NOW);
+const before = metrics(cases, NOW), after = metrics(cohort(NOW, 60, 7, 0.8), NOW);
 const $ = (s) => document.querySelector(s);
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
 const day = (iso) => iso ? iso.slice(0, 10) : '';
@@ -63,7 +67,11 @@ function render(sel) {
   $('#kpis').innerHTML = [
     [m.total, 'actionable results'], [m.closed, 'closed with evidence'], [m.overdue, 'overdue now'],
     [m.medianDaysToSpecialist?.toFixed(0) ?? '-', 'median days to specialist'],
+    [m.notifiedPct + '%', 'notified'], [m.acknowledgedPct + '%', 'understood'], [m.referralCompletionPct + '%', 'referrals completed'],
   ].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
+  $('#scenario').innerHTML = `<b>Simulated scenario, same 60 cases:</b> left silent, ${before.closed} closed and ${before.stalled} stalled unseen
+    (${Object.entries(before.stallReasons).map(([k, v]) => `${v} ${esc(k)}`).join(', ')}). With the worklist, assuming coordinators resolve 80% of exceptions two days after the breach,
+    ${after.closed} closed and ${after.stalled} stalled. This is a model of the drop-offs, not a measured outcome.`;
   const wl = worklist(cases, NOW);
   $('#count').textContent = `(${wl.length})`;
   $('#list').innerHTML = wl.map(({ c, s }) => `<button class="row" data-id="${c.id}" aria-current="${c.id === sel}">
@@ -88,8 +96,16 @@ function detail(c) {
   $('#detail').innerHTML = `<h2>${c.id} · ${esc(c.finding)} → ${esc(c.confirm)} → ${esc(c.specialist)} (${c.urgency})</h2>
     <ol class="tl">${tl}</ol>
     ${msg ? `<h2 style="margin-top:14px">Message the patient sees (${c.lang === 'ar' ? 'Arabic' : 'English'})</h2><pre lang="${c.lang}">${esc(msg)}</pre>` : ''}
+    <h2 style="margin-top:14px">Consultations</h2>
+    ${(c.consults ?? []).map((q, i) => `<p>${esc(q.from)} → ${esc(q.to)}: ${esc(q.question)}<br><small class="note">${q.answer ? esc(q.answer) + ' · ' + esc(q.by) : `Waiting since ${day(q.at)}`}</small>
+      ${q.answer ? '' : `<button class="act" data-answer="${i}">Record answer</button>`}</p>`).join('')}
+    <p><button class="act alt" id="ask-nurse">Patient asked for a nurse</button> <button class="act alt" id="ask-spec">Ask ${esc(c.specialist)}</button></p>
     ${s.next ? `<p><button class="act" id="close" ${check.ok ? '' : 'disabled'}>Close case (clinician sign-off)</button>
       <span class="note">${check.ok ? 'All steps documented.' : 'Cannot close: ' + esc(check.reason)}</span></p>` : '<p class="note">Closed.</p>'}`;
+  const put = (n) => { cases[cases.indexOf(c)] = n; render(c.id); };
+  $('#ask-nurse')?.addEventListener('click', () => put(requestConsult(c, { kind: 'patient-to-clinician', from: 'Patient (replied 2)', to: c.owner?.acknowledged ?? 'Care navigator', question: 'Wants to talk to a nurse about the result' }, NOW)));
+  $('#ask-spec')?.addEventListener('click', () => put(requestConsult(c, { kind: 'clinician-to-clinician', from: c.owner?.confirmatory ?? 'Primary care', to: c.specialist, question: `Is ${c.confirm} the right next step, or a direct referral?` }, NOW)));
+  document.querySelectorAll('[data-answer]').forEach((b) => b.addEventListener('click', () => put(answerConsult(c, +b.dataset.answer, 'Answered and recorded on the case', c.consults[+b.dataset.answer].to, NOW))));
   $('#close')?.addEventListener('click', () => {
     const i = cases.indexOf(c);
     cases[i] = close(c, { name: c.owner?.closed ?? 'Case owner', clinician: true }, NOW);
