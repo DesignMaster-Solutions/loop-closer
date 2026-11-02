@@ -120,7 +120,7 @@ function detail(c) {
       ${q.answer ? '' : `<button class="act" data-answer="${i}">Record answer</button>`}</p>`).join('')}
     <p><button class="act alt" id="ask-nurse">Patient asked for a nurse</button> <button class="act alt" id="ask-spec">Ask ${esc(c.specialist)}</button></p>
     ${s.next ? `<p><button class="act" id="close" ${check.ok ? '' : 'disabled'}>Close case (clinician sign-off)</button>
-      <span class="note">${check.ok ? 'All steps documented.' : 'Cannot close: ' + esc(check.reason)}</span></p>` : '<p class="note">Closed.</p>'}`
+      <span class="note">${check.ok ? 'All steps documented.' : 'Cannot close: ' + esc(check.reason)}</span></p>` : '<p class="note">Closed.</p>'}
     ${c.correction && !c.correction.reviewed ? `<p><b>The lab ${c.correction.status === 'cancelled' ? 'cancelled' : 'corrected'} this result${c.correction.status === 'corrected' ? ` to "${esc(c.correction.value)}"` : ''}.</b> A clinician decides what happens to the case. <button class="act" id="reviewed">Mark reviewed by clinician</button></p>` : ''}
     <p><button class="act alt" id="export">Download this case as a FHIR R4 Bundle</button> <span class="note">Tasks, referral, messages, encounter, care plan and provenance. Passes the HL7 validator.</span></p>`;
   const put = (n) => { cases[cases.indexOf(c)] = n; render(c.id); };
