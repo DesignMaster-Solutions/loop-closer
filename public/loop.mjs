@@ -41,6 +41,7 @@ export function status(c, now) {
   if (new Date(now) > new Date(dueAt)) flags.push('overdue');
   if (next.id === 'accepted' && c.referral === 'rejected') flags.push('referral-rejected');
   if (c.consults?.some((q) => !q.answer && new Date(now) - new Date(q.at) > CONSULT_SLA_HOURS[c.urgency] * H)) flags.push('consult-waiting');
+  if (c.correction && !c.correction.reviewed) flags.push('result-corrected');
   if (c.urgency === 'urgent' && flags.length) flags.push('escalate');
   return { stage: last.step, next: next.id, nextLabel: next.label, role: next.owner, owner, dueAt, flags };
 }
@@ -71,7 +72,7 @@ export function answerConsult(c, i, answer, by, at) {
   return { ...c, consults: c.consults.map((q, k) => (k === i ? { ...q, answer, by, answeredAt: at } : q)) };
 }
 
-const RANK = { escalate: 0, 'referral-rejected': 1, 'consult-waiting': 2, overdue: 3, unassigned: 4 };
+const RANK = { escalate: 0, 'result-corrected': 1, 'referral-rejected': 1, 'consult-waiting': 2, overdue: 3, unassigned: 4 };
 const U = { urgent: 0, priority: 1, routine: 2 };
 
 // The exception queue a coordinator works every morning: only cases that need a human.

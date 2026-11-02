@@ -1,0 +1,6 @@
+server https://hapi.fhir.org/baseR4 2026-11-02T14:44:13.706Z
+first post  {"http":200,"type":"transaction-response","entries":17,"codes":{"201":17}}
+read back   Task lc-C-FIT-77120-closed completed Dr. M. Al Nuaimi (PHC Khalifa City) version 1
+tasks       8
+second post {"http":200,"type":"transaction-response","entries":17,"codes":{"200":17}}
+tasks again 8

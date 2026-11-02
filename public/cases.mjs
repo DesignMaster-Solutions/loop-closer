@@ -11,13 +11,18 @@ const PROGRAMS = [
   { name: 'Breast (mammography)', test: 'BI-RADS 4', confirm: 'Biopsy', spec: 'Breast clinic' },
   { name: 'Diabetes (HbA1c)', test: 'HbA1c 7.9%', confirm: 'Repeat HbA1c', spec: 'Endocrinology' },
 ];
-const STAFF = {
+export const STAFF = {
   'Screening program': ['Lab liaison A. Haddad'],
   'Care navigator': ['Navigator S. Rahman', 'Navigator L. Costa'],
   'Primary care': ['Dr. M. Al Nuaimi (PHC Khalifa City)', 'Dr. R. Pereira (PHC Al Bateen)'],
   'Specialist service': ['Dr. K. Iyer (Specialist hospital)'],
   'Case owner (clinician)': ['Dr. M. Al Nuaimi (PHC Khalifa City)'],
 };
+
+// Demo routing for results that arrive from the lab feed. A pilot loads this from the program's own roster.
+export function routingFor() {
+  return Object.fromEntries(STEPS.slice(1).map((st) => [st.id, STAFF[st.owner][0]]));
+}
 
 // recover: share of surfaced exceptions a coordinator resolves two days after the service level
 // was breached. 0 = silent failure, nobody sees the stall. Scenario assumption, not a measured effect.

@@ -1,0 +1,4 @@
+MSH|^~\&|LAB|DEMOLAB|LOOPCLOSER|PROGRAM|20261101080000+0400||ORU^R01|MSG-FIT-77120|T|2.5.1
+PID|1||PSEUDO-4471^^^PROGRAM^PI||||||||||||ara
+OBR|1||FIT-77120|29771-3^Hemoglobin [Presence] in Stool from gastrointestinal lower by Immunoassay^LN|||20261031100000+0400||||||||||||||20261101073000+0400|||F
+OBX|1|CWE|29771-3^Hemoglobin [Presence] in Stool from gastrointestinal lower by Immunoassay^LN||Positive|||A|||F|||20261101073000+0400

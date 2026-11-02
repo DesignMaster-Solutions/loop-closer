@@ -1,0 +1,5 @@
+HL7 v2 parse + triage                        100000 in 9261 ms (10,798/s)
+worklist over open cases                     100000 in 4449 ms (22,479/s)
+program metrics                              100000 in 2497 ms (40,044/s)
+FHIR bundle export                           10000 in 937 ms (10,668/s)
+v26.13.0 darwin arm64

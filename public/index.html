@@ -24,6 +24,11 @@
   .tag.escalate { background:#fde8e6; color:var(--red); } .tag.overdue { background:#fdf0e1; color:var(--amber); }
   .tag.referral-rejected { background:#fde8e6; color:var(--red); }
   .tag.consult-waiting { background:#fdf0e1; color:var(--amber); }
+  .tag.result-corrected { background:#fde8e6; color:var(--red); }
+  #feed { margin:0 24px 16px; }
+  #feed .btns { display:flex; flex-wrap:wrap; gap:8px; }
+  #feed pre.msg { font:12px/1.45 ui-monospace, Menlo, monospace; white-space:pre-wrap; word-break:break-all; max-height:180px; overflow:auto; margin:10px 0 0; }
+  #feed .out { margin:8px 0 0; }
   ol.tl { list-style:none; margin:0; padding:0; }
   ol.tl li { padding:6px 0 6px 22px; position:relative; border-left:2px solid var(--line); margin-left:6px; }
   ol.tl li::before { content:""; position:absolute; left:-7px; top:10px; width:12px; height:12px; border-radius:50%; background:var(--line); }
@@ -44,6 +49,19 @@
 </header>
 <div class="kpis" id="kpis"></div>
 <p class="note" id="scenario" style="margin:0;padding:0 24px 14px"></p>
+<section id="feed">
+  <h2>Lab feed <span class="note">HL7 v2 and FHIR R4, test messages only. Nothing leaves this page.</span></h2>
+  <div class="btns">
+    <button class="act alt" data-feed="hl7">Receive HL7 v2 result (positive FIT)</button>
+    <button class="act alt" data-feed="fhir">Receive FHIR result (HbA1c 7.9%)</button>
+    <button class="act alt" data-feed="again">Lab resends the same message</button>
+    <button class="act alt" data-feed="corrected">Lab corrects the FIT to negative</button>
+    <button class="act alt" data-feed="unknown">Result with no rule</button>
+    <button class="act alt" data-feed="reconcile">Reconcile against the lab list</button>
+  </div>
+  <p class="out" id="feed-out" aria-live="polite"></p>
+  <pre class="msg" id="feed-msg" hidden></pre>
+</section>
 <main>
   <section>
     <h2>Needs a human today <span class="note" id="count"></span></h2>
@@ -53,7 +71,8 @@
 </main>
 <script type="module">
 import { STEPS, status, canClose, close, worklist, patientMessage, metrics, requestConsult, answerConsult } from './loop.mjs';
-import { cohort } from './cases.mjs';
+import { cohort, routingFor } from './cases.mjs';
+import { parseMessage, ingest, reconcile, feedHealth, toFhirBundle } from './interop.mjs';
 
 const NOW = '2026-11-15T09:00:00Z';
 let cases = cohort(NOW);
@@ -101,17 +120,68 @@ function detail(c) {
       ${q.answer ? '' : `<button class="act" data-answer="${i}">Record answer</button>`}</p>`).join('')}
     <p><button class="act alt" id="ask-nurse">Patient asked for a nurse</button> <button class="act alt" id="ask-spec">Ask ${esc(c.specialist)}</button></p>
     ${s.next ? `<p><button class="act" id="close" ${check.ok ? '' : 'disabled'}>Close case (clinician sign-off)</button>
-      <span class="note">${check.ok ? 'All steps documented.' : 'Cannot close: ' + esc(check.reason)}</span></p>` : '<p class="note">Closed.</p>'}`;
+      <span class="note">${check.ok ? 'All steps documented.' : 'Cannot close: ' + esc(check.reason)}</span></p>` : '<p class="note">Closed.</p>'}`
+    ${c.correction && !c.correction.reviewed ? `<p><b>The lab ${c.correction.status === 'cancelled' ? 'cancelled' : 'corrected'} this result${c.correction.status === 'corrected' ? ` to "${esc(c.correction.value)}"` : ''}.</b> A clinician decides what happens to the case. <button class="act" id="reviewed">Mark reviewed by clinician</button></p>` : ''}
+    <p><button class="act alt" id="export">Download this case as a FHIR R4 Bundle</button> <span class="note">Tasks, referral, messages, encounter, care plan and provenance. Passes the HL7 validator.</span></p>`;
   const put = (n) => { cases[cases.indexOf(c)] = n; render(c.id); };
   $('#ask-nurse')?.addEventListener('click', () => put(requestConsult(c, { kind: 'patient-to-clinician', from: 'Patient (replied 2)', to: c.owner?.acknowledged ?? 'Care navigator', question: 'Wants to talk to a nurse about the result' }, NOW)));
   $('#ask-spec')?.addEventListener('click', () => put(requestConsult(c, { kind: 'clinician-to-clinician', from: c.owner?.confirmatory ?? 'Primary care', to: c.specialist, question: `Is ${c.confirm} the right next step, or a direct referral?` }, NOW)));
   document.querySelectorAll('[data-answer]').forEach((b) => b.addEventListener('click', () => put(answerConsult(c, +b.dataset.answer, 'Answered and recorded on the case', c.consults[+b.dataset.answer].to, NOW))));
+  $('#reviewed')?.addEventListener('click', () => put({ ...c, correction: { ...c.correction, reviewed: true } }));
+  $('#export')?.addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(toFhirBundle(c, NOW), null, 2)], { type: 'application/fhir+json' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: `${c.id}.fhir.json` });
+    a.click(); URL.revokeObjectURL(url);
+  });
   $('#close')?.addEventListener('click', () => {
     const i = cases.indexOf(c);
     cases[i] = close(c, { name: c.owner?.closed ?? 'Case owner', clinician: true }, NOW);
     render(c.id);
   });
 }
+
+const FIT = '29771-3^Hemoglobin [Presence] in Stool from gastrointestinal lower by Immunoassay^LN';
+const oru = (acc, code, type, value, st = 'F') => [
+  `MSH|^~\\&|LAB|DEMOLAB|LOOPCLOSER|PROGRAM|20261115070000+0400||ORU^R01|MSG-${acc}|T|2.5.1`,
+  'PID|1||PSEUDO-4471^^^PROGRAM^PI||||||||||||ara',
+  `OBR|1||${acc}|${code}|||20261114100000+0400||||||||||||||20261115073000+0400|||${st}`,
+  `OBX|1|${type}|${code}||${value}|||A|||${st}|||20261115073000+0400`,
+].join('\n');
+const HBA = JSON.stringify({ resourceType: 'Bundle', type: 'collection', meta: { tag: [{ code: 'HTEST' }] }, entry: [
+  { fullUrl: 'urn:p', resource: { resourceType: 'Patient', identifier: [{ value: 'PSEUDO-9' }], communication: [{ language: { coding: [{ code: 'en' }] } }] } },
+  { fullUrl: 'urn:o', resource: { resourceType: 'Observation', status: 'final', code: { coding: [{ system: 'http://loinc.org', code: '4548-4', display: 'Hemoglobin A1c/Hemoglobin.total in Blood' }] }, valueQuantity: { value: 7.9, unit: '%' } } },
+  { fullUrl: 'urn:r', resource: { resourceType: 'DiagnosticReport', status: 'final', identifier: [{ value: 'HBA-501' }], code: { coding: [{ system: 'http://loinc.org', code: '4548-4' }] }, subject: { reference: 'urn:p' }, issued: '2026-11-15T07:30:00+04:00', result: [{ reference: 'urn:o' }] } },
+] }, null, 1);
+const MESSAGES = { hl7: oru('FIT-77120', FIT, 'CWE', 'Positive'), fhir: HBA, again: oru('FIT-77120', FIT, 'CWE', 'Positive'), corrected: oru('FIT-77120', FIT, 'CWE', 'Negative', 'C'), unknown: oru('LAB-9', '1234-5^Unlisted test^LN', 'ST', 'See report') };
+const SAID = { opened: 'Opened a case', duplicate: 'Same accession number: no second case', corrected: 'Flag raised on the open case. It stays open until a clinician reviews it', 'needs-review': 'Sent to a person, never dropped', 'not-actionable': 'Recorded as not actionable' };
+const seen = [];
+let lastMessageAt = '2026-11-15T07:30:00Z';
+
+$('#feed').addEventListener('click', (e) => {
+  const kind = e.target.closest('[data-feed]')?.dataset.feed;
+  if (!kind) return;
+  const out = $('#feed-out'), pre = $('#feed-msg');
+  document.body.dataset.feed = kind;
+  if (kind === 'reconcile') {
+    const { missing } = reconcile([...cases.filter((c) => c.accession).map((c) => c.accession), ...seen, 'FIT-77121'], cases, seen);
+    const h = feedHealth(lastMessageAt, NOW);
+    out.innerHTML = `<b>Lab list against cases:</b> ${missing.length} result${missing.length === 1 ? '' : 's'} issued and never received (${missing.map(esc).join(', ')}). They go to the coordinator so they cannot vanish. Feed last heard ${h.silentHours.toFixed(1)} h ago: ${h.stale ? 'STALE, alert' : 'healthy'}.`;
+    pre.hidden = true;
+    document.body.dataset.missing = missing.join(',');
+    return;
+  }
+  const text = MESSAGES[kind];
+  pre.textContent = text; pre.hidden = false;
+  const [r] = parseMessage(text);
+  const res = ingest(cases, r, NOW, routingFor);
+  cases = res.cases;
+  if (res.action === 'not-actionable' || res.action === 'needs-review') seen.push(r.accession);
+  lastMessageAt = NOW;
+  out.innerHTML = `<b>${esc(SAID[res.action])}.</b> ${esc(r.source === 'fhir' ? 'FHIR R4' : 'HL7 v2')} · ${esc(r.accession)} · ${esc(r.display ?? r.loinc ?? '')}: ${esc(r.value)}${res.reason ? ` · rule: ${esc(res.reason)}` : ''}`;
+  document.body.dataset.lastAction = res.action;
+  document.body.dataset.cases = String(cases.length);
+  render(res.id ?? undefined);
+});
 
 $('#list').addEventListener('click', (e) => { const b = e.target.closest('.row'); if (b) render(b.dataset.id); });
 render(worklist(cases, NOW)[0]?.c.id);

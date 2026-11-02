@@ -2,5 +2,6 @@
   "name": "loop-closer",
   "account_id": "1ed921eb42c9296a7db12104be5455c9",
   "compatibility_date": "2026-10-12",
-  "assets": { "directory": "./public" }
+  "main": "src/worker.mjs",
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] }
 }

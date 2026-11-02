@@ -23,6 +23,31 @@ issued → patient notified → patient confirmed understanding → confirmatory
 
 The coordinator screen shows only the cases that need a human today, ranked escalation → rejected referral → overdue → unassigned, then by urgency and due date.
 
+## Interoperability
+
+Results come in and case state goes out in the formats screening programs already use. The same pure module (`public/interop.mjs`) runs in the browser, in the API and in the tests.
+
+- **In:** HL7 v2 `ORU^R01` and FHIR R4 `DiagnosticReport` with its `Observation`. Three programs mapped by LOINC: FIT (29771-3, 57905-2), mammography (24606-6, BI-RADS), HbA1c (4548-4). The thresholds are an explicit table the program's clinical lead owns (`RULES`).
+- **One case per accession number.** The lab resending a message opens nothing new. A corrected or cancelled result raises a flag on the open case for a clinician: nothing closes itself.
+- **Nothing vanishes.** A code with no rule or a value the rule cannot read goes to a person, never to "normal". `reconcile` compares the lab's list with what arrived, and `feedHealth` raises an alarm when the feed goes silent.
+- **Out:** one idempotent FHIR R4 transaction per case: `Task` per step (owner, due date, flags), `ServiceRequest`, `Communication`, `Encounter`, `CarePlan`, `DocumentReference`, `Provenance` for the clinician's sign-off. Patients travel as a pseudonym.
+
+Proof, reproducible from this repo:
+
+- `node scripts/samples.mjs` writes the sample messages and bundles to [docs/samples/](docs/samples/).
+- [docs/fhir-validation.txt](docs/fhir-validation.txt): output of the official HL7 FHIR Validator on those bundles.
+- [docs/fhir-roundtrip.txt](docs/fhir-roundtrip.txt): `node scripts/roundtrip.mjs` against the public HAPI FHIR R4 server. 17 resources created, read back, and posted again with no duplicates. That run also found a real bug our own tests missed (a `urn:` fullUrl the server refused), fixed in this repo.
+- [docs/bench.txt](docs/bench.txt): `node scripts/bench.mjs`. On one laptop core, over 10,000 lab messages per second, and a 100,000-case worklist in under 5 seconds.
+
+Try the API with the sample message. The public demo stores nothing and refuses anything not marked as test data (`MSH-11` = T or D, FHIR `meta.tag` HTEST):
+
+```
+curl -X POST https://loop-closer.designmaster.workers.dev/api/v1/results \
+  -H 'content-type: application/hl7-v2' --data-binary @docs/samples/oru-fit-positive.hl7
+```
+
+Architecture, data governance and the pilot path: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Simulated scenario (not a measured outcome)
 
 Same 60 seeded cases, two arms. In the first, a stall (no owner at a hand-off, rejected referral, unreachable patient) stays silent. In the second, the worklist surfaces it and we assume coordinators resolve 80% of exceptions two days after the service level is breached.
@@ -49,7 +74,8 @@ npx wrangler dev  # static site on Cloudflare Workers assets
 - SLA hours per urgency are illustrative defaults; each screening program sets its own.
 - The cohort (60 cases across colorectal FIT, mammography and HbA1c screening) is generated with a fixed seed to reproduce the drop-offs the challenge describes. It is not real data and the metrics are not outcomes. Changes made in the demo live in the browser only.
 - Arabic patient text was written for the prototype and must be reviewed by the program's clinical and language teams before any use.
-- No integration yet with lab systems (HL7 v2 ORU / FHIR DiagnosticReport) or referral systems (FHIR ServiceRequest/Task); the case model maps onto them and is the next step.
+- Not connected yet to a production lab interface or to Malaffi. The formats are built and tested (see Interoperability); the connection needs a program and its security review.
+- A demo browser keeps its changes in memory. A pilot adds the case store, login and real message delivery described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## License
 

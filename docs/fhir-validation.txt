@@ -1,0 +1,50 @@
+Official HL7 FHIR Validator 7.0.3 (validator_cli.jar), FHIR R4 4.0.1, language en, run 2026-11-02T14:47Z
+java -jar validator_cli.jar -version 4.0.1 -language en docs/samples/bundle-midway.json docs/samples/bundle-referral-rejected.json docs/samples/bundle-closed.json docs/samples/report-hba1c.fhir.json
+
+-- docs/samples/bundle-midway.json ----------------------------------------
+Success: 0 errors, 8 warnings, 1 notes
+  Warning @ Bundle.entry[3].resource/*Task/lc-C-FIT-77120-notified*/.code.coding[0].system (line 141, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[4].resource/*Task/lc-C-FIT-77120-acknowledged*/.code.coding[0].system (line 187, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[5].resource/*Task/lc-C-FIT-77120-confirmatory*/.code.coding[0].system (line 233, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Information @ Bundle.entry[6].resource/*Task/lc-C-FIT-77120-referred*/.businessStatus (line 303, col10): Binding for path Bundle.entry[6].resource/*Task/lc-C-FIT-77120-referred*/.businessStatus in profile StructureDefinition[http://hl7.or
+  Warning @ Bundle.entry[6].resource/*Task/lc-C-FIT-77120-referred*/.code.coding[0].system (line 279, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[7].resource/*Task/lc-C-FIT-77120-accepted*/.code.coding[0].system (line 332, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[8].resource/*Task/lc-C-FIT-77120-appointed*/.code.coding[0].system (line 377, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[9].resource/*Task/lc-C-FIT-77120-care*/.code.coding[0].system (line 422, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[10].resource/*Task/lc-C-FIT-77120-closed*/.code.coding[0].system (line 467, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+---------------------------------------------------------------------------
+
+-- docs/samples/bundle-referral-rejected.json --------------------------------------------------
+Success: 0 errors, 8 warnings, 1 notes
+  Warning @ Bundle.entry[3].resource/*Task/lc-C-FIT-77120-notified*/.code.coding[0].system (line 145, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[4].resource/*Task/lc-C-FIT-77120-acknowledged*/.code.coding[0].system (line 191, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[5].resource/*Task/lc-C-FIT-77120-confirmatory*/.code.coding[0].system (line 237, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[6].resource/*Task/lc-C-FIT-77120-referred*/.code.coding[0].system (line 283, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Information @ Bundle.entry[7].resource/*Task/lc-C-FIT-77120-accepted*/.businessStatus (line 353, col10): Binding for path Bundle.entry[7].resource/*Task/lc-C-FIT-77120-accepted*/.businessStatus in profile StructureDefinition[http://hl7.or
+  Warning @ Bundle.entry[7].resource/*Task/lc-C-FIT-77120-accepted*/.code.coding[0].system (line 329, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[8].resource/*Task/lc-C-FIT-77120-appointed*/.code.coding[0].system (line 382, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[9].resource/*Task/lc-C-FIT-77120-care*/.code.coding[0].system (line 427, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[10].resource/*Task/lc-C-FIT-77120-closed*/.code.coding[0].system (line 472, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+------------------------------------------------------------------------------------------------
+
+-- docs/samples/bundle-closed.json ----------------------------------------
+Success: 0 errors, 8 warnings, 0 notes
+  Warning @ Bundle.entry[3].resource/*Task/lc-C-FIT-77120-notified*/.code.coding[0].system (line 145, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[4].resource/*Task/lc-C-FIT-77120-acknowledged*/.code.coding[0].system (line 191, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[5].resource/*Task/lc-C-FIT-77120-confirmatory*/.code.coding[0].system (line 237, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[6].resource/*Task/lc-C-FIT-77120-referred*/.code.coding[0].system (line 283, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[7].resource/*Task/lc-C-FIT-77120-accepted*/.code.coding[0].system (line 329, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[8].resource/*Task/lc-C-FIT-77120-appointed*/.code.coding[0].system (line 375, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[9].resource/*Task/lc-C-FIT-77120-care*/.code.coding[0].system (line 421, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+  Warning @ Bundle.entry[10].resource/*Task/lc-C-FIT-77120-closed*/.code.coding[0].system (line 467, col10): A definition for CodeSystem 'urn:loop-closer:step' could not be found, so the code cannot be validated
+---------------------------------------------------------------------------
+
+-- docs/samples/report-hba1c.fhir.json -------------------------------------------
+Success: 0 errors, 4 warnings, 0 notes
+  Warning @ Bundle.entry[0].resource/*Patient/p1*/ (line 16, col8): Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Recomm
+  Warning @ Bundle.entry[1].resource/*Observation/o1*/ (line 41, col8): Best Practice Recommendation: In general, all observations should have a performer
+  Warning @ Bundle.entry[1].resource/*Observation/o1*/ (line 41, col8): Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practice Re
+  Warning @ Bundle.entry[2].resource/*DiagnosticReport/r1*/ (line 68, col8): Constraint failed: dom-6: 'A resource should have narrative for robust management' (defined in http://hl7.org/fhir/StructureDefinition/DomainResource) (Best Practi
+----------------------------------------------------------------------------------
+
+Done. Times: Loading: 00:32.552, validation: 00:06.817 (#4). Max Memory = 3Gb

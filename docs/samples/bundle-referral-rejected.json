@@ -1,0 +1,600 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Patient/lc-pat-C-FIT-77120",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "lc-pat-C-FIT-77120",
+        "identifier": [
+          {
+            "system": "urn:loop-closer:pseudonym",
+            "value": "PSEUDO-4471"
+          }
+        ],
+        "communication": [
+          {
+            "language": {
+              "coding": [
+                {
+                  "system": "urn:ietf:bcp:47",
+                  "code": "ar"
+                }
+              ]
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Patient for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/lc-pat-C-FIT-77120"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/DiagnosticReport/lc-rep-C-FIT-77120",
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "id": "lc-rep-C-FIT-77120",
+        "identifier": [
+          {
+            "system": "urn:loop-closer:accession",
+            "value": "FIT-77120"
+          }
+        ],
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "29771-3",
+              "display": "Hemoglobin [Presence] in Stool from gastrointestinal lower by Immunoassay"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "issued": "2026-11-01T03:30:00.000Z",
+        "conclusion": "Positive FIT",
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer DiagnosticReport for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "DiagnosticReport/lc-rep-C-FIT-77120"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/ServiceRequest/lc-ref-C-FIT-77120",
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "id": "lc-ref-C-FIT-77120",
+        "status": "active",
+        "intent": "order",
+        "code": {
+          "text": "Referral to Gastroenterology"
+        },
+        "subject": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "reasonReference": [
+          {
+            "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+          }
+        ],
+        "authoredOn": "2026-11-05T03:30:00.000Z",
+        "requester": {
+          "display": "Dr. M. Al Nuaimi (PHC Khalifa City)"
+        },
+        "performer": [
+          {
+            "display": "Dr. K. Iyer (Specialist hospital)"
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer ServiceRequest for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ServiceRequest/lc-ref-C-FIT-77120"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Task/lc-C-FIT-77120-notified",
+      "resource": {
+        "resourceType": "Task",
+        "id": "lc-C-FIT-77120-notified",
+        "status": "completed",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:loop-closer:step",
+              "code": "notified",
+              "display": "Patient notified"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+        },
+        "for": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "authoredOn": "2026-11-01T03:30:00.000Z",
+        "lastModified": "2026-11-02T03:30:00.000Z",
+        "owner": {
+          "display": "Lab liaison A. Haddad"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Task for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Task/lc-C-FIT-77120-notified"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Task/lc-C-FIT-77120-acknowledged",
+      "resource": {
+        "resourceType": "Task",
+        "id": "lc-C-FIT-77120-acknowledged",
+        "status": "completed",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:loop-closer:step",
+              "code": "acknowledged",
+              "display": "Patient confirmed understanding"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+        },
+        "for": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "authoredOn": "2026-11-01T03:30:00.000Z",
+        "lastModified": "2026-11-03T03:30:00.000Z",
+        "owner": {
+          "display": "Navigator S. Rahman"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Task for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Task/lc-C-FIT-77120-acknowledged"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Task/lc-C-FIT-77120-confirmatory",
+      "resource": {
+        "resourceType": "Task",
+        "id": "lc-C-FIT-77120-confirmatory",
+        "status": "completed",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:loop-closer:step",
+              "code": "confirmatory",
+              "display": "Confirmatory test done"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+        },
+        "for": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "authoredOn": "2026-11-01T03:30:00.000Z",
+        "lastModified": "2026-11-04T03:30:00.000Z",
+        "owner": {
+          "display": "Dr. M. Al Nuaimi (PHC Khalifa City)"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Task for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Task/lc-C-FIT-77120-confirmatory"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Task/lc-C-FIT-77120-referred",
+      "resource": {
+        "resourceType": "Task",
+        "id": "lc-C-FIT-77120-referred",
+        "status": "completed",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:loop-closer:step",
+              "code": "referred",
+              "display": "Referral sent"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "ServiceRequest/lc-ref-C-FIT-77120"
+        },
+        "for": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "authoredOn": "2026-11-01T03:30:00.000Z",
+        "lastModified": "2026-11-05T03:30:00.000Z",
+        "owner": {
+          "display": "Dr. M. Al Nuaimi (PHC Khalifa City)"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Task for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Task/lc-C-FIT-77120-referred"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Task/lc-C-FIT-77120-accepted",
+      "resource": {
+        "resourceType": "Task",
+        "id": "lc-C-FIT-77120-accepted",
+        "status": "rejected",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:loop-closer:step",
+              "code": "accepted",
+              "display": "Referral accepted"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "ServiceRequest/lc-ref-C-FIT-77120"
+        },
+        "for": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "authoredOn": "2026-11-01T03:30:00.000Z",
+        "owner": {
+          "display": "Dr. K. Iyer (Specialist hospital)"
+        },
+        "restriction": {
+          "period": {
+            "end": "2026-11-10T03:30:00.000Z"
+          }
+        },
+        "businessStatus": {
+          "text": "overdue, referral-rejected"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Task for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Task/lc-C-FIT-77120-accepted"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Task/lc-C-FIT-77120-appointed",
+      "resource": {
+        "resourceType": "Task",
+        "id": "lc-C-FIT-77120-appointed",
+        "status": "draft",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:loop-closer:step",
+              "code": "appointed",
+              "display": "Appointment attended"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+        },
+        "for": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "authoredOn": "2026-11-01T03:30:00.000Z",
+        "owner": {
+          "display": "Dr. K. Iyer (Specialist hospital)"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Task for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Task/lc-C-FIT-77120-appointed"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Task/lc-C-FIT-77120-care",
+      "resource": {
+        "resourceType": "Task",
+        "id": "lc-C-FIT-77120-care",
+        "status": "draft",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:loop-closer:step",
+              "code": "care",
+              "display": "Treatment or surveillance plan"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+        },
+        "for": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "authoredOn": "2026-11-01T03:30:00.000Z",
+        "owner": {
+          "display": "Dr. K. Iyer (Specialist hospital)"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Task for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Task/lc-C-FIT-77120-care"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Task/lc-C-FIT-77120-closed",
+      "resource": {
+        "resourceType": "Task",
+        "id": "lc-C-FIT-77120-closed",
+        "status": "draft",
+        "intent": "order",
+        "code": {
+          "coding": [
+            {
+              "system": "urn:loop-closer:step",
+              "code": "closed",
+              "display": "Closed with evidence"
+            }
+          ]
+        },
+        "focus": {
+          "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+        },
+        "for": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "authoredOn": "2026-11-01T03:30:00.000Z",
+        "owner": {
+          "display": "Dr. M. Al Nuaimi (PHC Khalifa City)"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Task for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Task/lc-C-FIT-77120-closed"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Communication/lc-com-C-FIT-77120-notified",
+      "resource": {
+        "resourceType": "Communication",
+        "id": "lc-com-C-FIT-77120-notified",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "about": [
+          {
+            "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+          }
+        ],
+        "sent": "2026-11-02T03:30:00.000Z",
+        "recipient": [
+          {
+            "reference": "Patient/lc-pat-C-FIT-77120"
+          }
+        ],
+        "sender": {
+          "display": "Lab liaison A. Haddad"
+        },
+        "payload": [
+          {
+            "contentString": "نتيجة الفحص تحتاج إلى متابعة. هذا ليس تشخيصًا.\nالخطوة التالية: تأكيد فهم النتيجة\nالمسؤول عن متابعتك: Navigator S. Rahman\nقبل: 2026-11-07\nأرسل 1 إذا فهمت، أو 2 للتحدث مع ممرضة."
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Communication for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Communication/lc-com-C-FIT-77120-notified"
+      }
+    },
+    {
+      "fullUrl": "https://loop-closer.designmaster.workers.dev/fhir/Communication/lc-com-C-FIT-77120-ack",
+      "resource": {
+        "resourceType": "Communication",
+        "id": "lc-com-C-FIT-77120-ack",
+        "status": "completed",
+        "subject": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "about": [
+          {
+            "reference": "DiagnosticReport/lc-rep-C-FIT-77120"
+          }
+        ],
+        "received": "2026-11-03T03:30:00.000Z",
+        "sender": {
+          "reference": "Patient/lc-pat-C-FIT-77120"
+        },
+        "payload": [
+          {
+            "contentString": "Patient confirmed understanding (reply 1)"
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+              "code": "HTEST",
+              "display": "test health data"
+            }
+          ]
+        },
+        "text": {
+          "status": "generated",
+          "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Loop Closer Communication for case C-FIT-77120</div>"
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Communication/lc-com-C-FIT-77120-ack"
+      }
+    }
+  ]
+}
