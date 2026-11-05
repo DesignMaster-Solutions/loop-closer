@@ -220,9 +220,9 @@ function detail(c) {
   $('#missed')?.addEventListener('click', () => tryPut(() => missedVisit(c, at($('#rec-at').value), $('#rec-by').value || s.owner), '#rec-err'));
   $('#assign')?.addEventListener('click', () => tryPut(() => assign(c, s.next, $('#own-name').value), '#rec-err'));
   $('#send')?.addEventListener('click', () => put(record(c, 'notified', { at: now, by: 'Automated message (SMS/WhatsApp)' })));
-  const reply = (t) => { if (!t.trim()) return; const r = patientReply(c, t, now); put(r.case); $('#reply-out').textContent = SAYS[r.effect]; document.body.dataset.reply = r.effect; };
+  const reply = (t) => { if (!t.trim()) return; const r = patientReply(c, t, now); put(r.case); $('#reply-out').textContent = SAYS[r.effect]; document.body.dataset.lastReply = r.effect; };
   $('#reply-go')?.addEventListener('click', () => reply($('#reply').value));
-  document.querySelectorAll('[data-reply]').forEach((b) => b.addEventListener('click', () => reply(b.dataset.reply)));
+  $('#detail').querySelectorAll('[data-reply]').forEach((b) => b.addEventListener('click', () => reply(b.dataset.reply)));
   $('#ask-nurse')?.addEventListener('click', () => put(requestConsult(c, { kind: 'patient-to-clinician', from: 'Patient (replied 2)', to: c.owner?.acknowledged ?? 'Care navigator', question: 'Wants to talk to a nurse about the result' }, NOW)));
   $('#ask-spec')?.addEventListener('click', () => put(requestConsult(c, { kind: 'clinician-to-clinician', from: c.owner?.confirmatory ?? 'Primary care', to: c.specialist, question: `Is ${c.confirm} the right next step, or a direct referral?` }, NOW)));
   document.querySelectorAll('[data-answer]').forEach((b) => b.addEventListener('click', () => put(answerConsult(c, +b.dataset.answer, 'Answered and recorded on the case', c.consults[+b.dataset.answer].to, NOW))));
@@ -262,7 +262,7 @@ $('#feed').addEventListener('click', (e) => {
   const kind = e.target.closest('[data-feed]')?.dataset.feed;
   if (!kind) return;
   const out = $('#feed-out'), pre = $('#feed-msg');
-  document.body.dataset.feed = kind;
+  document.body.dataset.lastFeed = kind;
   if (kind === 'reconcile') {
     const { missing } = reconcile([...cases.filter((c) => c.accession).map((c) => c.accession), ...seen, 'FIT-77121'], cases, seen);
     const h = feedHealth(lastMessageAt, now);
