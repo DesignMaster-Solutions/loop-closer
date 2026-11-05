@@ -1,0 +1,194 @@
+{
+  "brand": "Loop Closer · Design Master Solutions LLC · simulated data, no real patients",
+  "voice": "Samantha",
+  "rate": 195,
+  "bg": "#0d2a2a",
+  "accent": "#14b8a6",
+  "out": "../docs/demo.mp4",
+  "scenes": [
+    {
+      "title": "Loop Closer",
+      "lines": [
+        "A positive screening result",
+        "with no owner gets lost.",
+        "",
+        "Here: own patient data,",
+        "automated alerts, patient",
+        "replies that move the case,",
+        "documented closure.",
+        "",
+        "Under 3 minutes. Simulated data."
+      ],
+      "shots": [
+        "shots/v10-closed.png"
+      ],
+      "say": "A positive screening result helps nobody when no one owns the next step. Loop Closer gives every actionable result an owner, a due date and a documented closure. Here is what the review team asked for: your own patient data, automated alerts, and patient replies that move the case. All data is simulated. No real patients."
+    },
+    {
+      "title": "1. Your own patient",
+      "lines": [
+        "A pseudonymised reference,",
+        "never a name.",
+        "",
+        "Saved only in",
+        "this browser.",
+        "",
+        "Start from an empty list",
+        "or keep the simulated 60."
+      ],
+      "shots": [
+        "shots/v02-form.png"
+      ],
+      "say": "First, your own data. I start from an empty list and add one patient, with a pseudonymised reference, never a name. Positive FIT, colonoscopy next, then gastroenterology. Urgent, with a named case owner. It is saved only in this browser."
+    },
+    {
+      "title": "Every step has an owner",
+      "lines": [
+        "Nine steps, result",
+        "to closure.",
+        "",
+        "Each step: a named owner",
+        "and a due date set",
+        "by urgency."
+      ],
+      "shots": [
+        "shots/v03-added.png"
+      ],
+      "say": "The case walks nine steps, from result to closure. Each step has a named owner and a due date set by urgency."
+    },
+    {
+      "title": "2. Automated alerts",
+      "lines": [
+        "Advance the demo clock",
+        "two days.",
+        "",
+        "The late step's owner",
+        "gets an alert.",
+        "",
+        "Urgent: escalated to",
+        "the case owner."
+      ],
+      "shots": [
+        "shots/v04-alerts.png"
+      ],
+      "say": "Nobody sends the message, so I advance the demo clock two days. Two alerts fire on their own. The lab liaison, who owns the late step, is told it is overdue. Because the case is urgent, it escalates to the case owner clinician."
+    },
+    {
+      "title": "3. The patient's reply moves the case",
+      "lines": [
+        "Sending records",
+        "\"Patient notified\".",
+        "",
+        "Reply 1: understood,",
+        "the case advances.",
+        "Reply 2: a nurse question",
+        "with a service level.",
+        "Free text is never dropped."
+      ],
+      "shots": [
+        "shots/v06-reply1.png"
+      ],
+      "say": "Now the message goes out, which records patient notified. The patient replies one, and the case moves to confirmed understanding. Replying two opens a nurse question with its own service level. Free text is never dropped."
+    },
+    {
+      "title": "Missed appointment",
+      "lines": [
+        "Flagged on the case.",
+        "",
+        "Owner and case owner",
+        "are alerted.",
+        "",
+        "Rebook within 48 h urgent,",
+        "5 days priority,",
+        "14 days routine."
+      ],
+      "shots": [
+        "shots/v07-missed-alerts.png"
+      ],
+      "say": "Primary care and the specialist record their steps. Then the patient misses the colonoscopy. The case is flagged, the specialist and the case owner are alerted, and a rebooking deadline is set: forty eight hours when urgent."
+    },
+    {
+      "title": "Reply 3: a new date",
+      "lines": [
+        "At the appointment step:",
+        "",
+        "Reply 1 confirms",
+        "attendance.",
+        "Reply 3 asks for a new",
+        "date and alerts the",
+        "step owner."
+      ],
+      "shots": [
+        "shots/v08-reply3.png"
+      ],
+      "say": "At the appointment step, replying three asks for a new date, and the step owner gets a reschedule alert. Replying one confirms attendance."
+    },
+    {
+      "title": "Closure: clinician, evidence, outcome",
+      "lines": [
+        "The plan step needs",
+        "an evidence document.",
+        "",
+        "Closure needs a clinician",
+        "sign-off and an outcome.",
+        "",
+        "No outcome, no closure."
+      ],
+      "shots": [
+        "shots/v09-close-refused.png"
+      ],
+      "say": "Closure stays with a clinician. The care plan is recorded with its evidence document. Closing without an outcome is refused."
+    },
+    {
+      "title": "Closed and documented",
+      "lines": [
+        "Who signed, when,",
+        "the evidence and",
+        "the outcome.",
+        "",
+        "Steps cannot be skipped",
+        "or back-dated."
+      ],
+      "shots": [
+        "shots/v10-closed.png"
+      ],
+      "say": "With the outcome written, the case owner signs off. The record shows who signed, when, the evidence and the outcome. No step can be skipped or back dated."
+    },
+    {
+      "title": "Built to connect",
+      "lines": [
+        "In: HL7 v2 ORU and",
+        "FHIR R4 results.",
+        "Out: one FHIR R4 Bundle",
+        "per case."
+      ],
+      "mono": [
+        "HL7 FHIR Validator 7.0.3 on 4 sample bundles:",
+        "Success: 0 errors (all four)",
+        "",
+        "Public HAPI FHIR R4 server, posted twice:",
+        "17 resources, 8 tasks, no duplicates"
+      ],
+      "mono_cmd": "npm test",
+      "mono_cwd": "..",
+      "mono_grep": [
+        "ℹ tests",
+        "ℹ pass",
+        "ℹ fail"
+      ],
+      "say": "Results arrive as H L 7 version two or FHIR R4, one case per accession number. Each case exports as a FHIR bundle. The official validator reports zero errors, and a public FHIR server took the same bundle twice with no duplicates."
+    },
+    {
+      "title": "Try it",
+      "lines": [
+        "loop-closer.designmaster.workers.dev",
+        "",
+        "github.com/DesignMaster-Solutions/loop-closer (MIT)",
+        "",
+        "Simulated cohort. No real patient data.",
+        "Message wording needs clinical and language review."
+      ],
+      "say": "The demo is public at loop-closer dot designmaster dot workers dot dev, with the code on GitHub. The cohort is simulated, and the patient wording needs clinical review before real use. Thanks for watching."
+    }
+  ]
+}

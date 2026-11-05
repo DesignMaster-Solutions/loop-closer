@@ -4,7 +4,7 @@ Prototype for the **Future Health Digital Innovation Challenge 2026**, Populatio
 
 Live demo: https://loop-closer.designmaster.workers.dev (simulated cohort, no real patient data)
 
-Deck: [docs/LoopCloser-deck.pdf](docs/LoopCloser-deck.pdf). Demo video: docs/demo.mp4 (rebuild with `video/make.py`).
+Deck: [docs/LoopCloser-deck.pdf](docs/LoopCloser-deck.pdf). Demo video (2:28): https://youtu.be/gonR0ie1Dg0 , also in docs/demo.mp4 (rebuild with `python3 demo_slides.py video/demo.json`; real captures of the live demo in video/shots/).
 
 ## What it does
 
