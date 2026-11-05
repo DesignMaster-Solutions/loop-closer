@@ -528,7 +528,7 @@
         },
         "payload": [
           {
-            "contentString": "نتيجة الفحص تحتاج إلى متابعة. هذا ليس تشخيصًا.\nالخطوة التالية: تأكيد فهم النتيجة\nالمسؤول عن متابعتك: Navigator S. Rahman\nقبل: 2026-11-07\nأرسل 1 إذا فهمت، أو 2 للتحدث مع ممرضة."
+            "contentString": "نتيجة فحصك تحتاج إلى متابعة. هذا ليس تشخيصًا.\nالخطوة التالية: تأكيد فهم النتيجة\nالمسؤول عن متابعتك: Navigator S. Rahman\nفي موعد أقصاه: 2026-11-07\nأرسل 1 إذا فهمت، أو 2 للتحدث مع ممرضة."
           }
         ],
         "meta": {
@@ -692,6 +692,11 @@
         "author": {
           "display": "Dr. K. Iyer (Specialist hospital)"
         },
+        "note": [
+          {
+            "text": "Closure outcome: Adenoma removed, surveillance colonoscopy in 3 years"
+          }
+        ],
         "supportingInfo": [
           {
             "reference": "DocumentReference/lc-doc-C-FIT-77120"

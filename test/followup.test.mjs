@@ -72,6 +72,7 @@ test('patient reply 1 advances the case, 2 opens a nurse consult, anything else 
   assert.equal(one.effect, 'acknowledged');
   assert.equal(status(one.case, '2026-11-10T10:00:00Z').next, 'confirmatory');
   assert.equal(patientReply(sent, '١', '2026-11-10T09:30:00Z').effect, 'acknowledged'); // Arabic-Indic digit
+  assert.equal(patientReply(sent, '۱', '2026-11-10T09:30:00Z').effect, 'acknowledged'); // Extended Arabic-Indic digit (Urdu and Persian keyboards)
   const two = patientReply(sent, '2', '2026-11-10T09:30:00Z');
   assert.equal(two.effect, 'consult');
   assert.equal(two.case.consults[0].kind, 'patient-to-clinician');

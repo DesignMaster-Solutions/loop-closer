@@ -98,6 +98,13 @@ test('scenario: same cohort, surfacing exceptions closes more cases than leaving
   assert.deepEqual(cohort(now, 60, 7, 0.8).map((c) => c.urgency), cohort(now, 60, 7, 0).map((c) => c.urgency));
 });
 
+test('Arabic message says "your" result and keeps the due date inclusive, as the English does', () => {
+  const ar = patientMessage(base, '2026-11-01T10:00:00Z', 'ar');
+  assert.match(ar, /نتيجة فحصك/);
+  assert.match(ar, /في موعد أقصاه: \d{4}-\d{2}-\d{2}/); // "no later than": قبل ("before") would end the window a day early
+  assert.doesNotMatch(ar, /قبل:/);
+});
+
 test('Arabic message has no English step or role left in it', () => {
   const msg = patientMessage({ ...base, owner: { ...base.owner, notified: null } }, '2026-11-01T10:00:00Z', 'ar');
   assert.doesNotMatch(msg, /Patient notified|Screening program/);

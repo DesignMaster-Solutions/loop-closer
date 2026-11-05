@@ -141,9 +141,10 @@ export function alerts(cases, now) {
   return out;
 }
 
-// The patient's reply to the message moves the case. Arabic-Indic digits count; nothing is ever dropped.
+// The patient's reply to the message moves the case. Arabic-Indic digits count, including the extended forms
+// typed on Urdu and Persian keyboards; nothing is ever dropped.
 export function patientReply(c, text, at) {
-  const t = String(text ?? '').trim().replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+  const t = String(text ?? '').trim().replace(/[٠-٩۰-۹]/g, (d) => { const c = d.charCodeAt(0); return String(c - (c >= 0x06F0 ? 0x06F0 : 0x0660)); });
   const s = status(c, at);
   const log = (n, effect) => ({ case: { ...n, inbox: [...(c.inbox ?? []), { at: iso(at), text: String(text), effect }] }, effect });
   if (t === '1' && s.next === 'acknowledged') return log(record(c, 'acknowledged', { at, by: 'Patient (replied 1)' }), 'acknowledged');
@@ -185,18 +186,18 @@ const MSG = {
     appt: 'Reply 1 to confirm you will attend, 3 if you need a new date, 2 to talk to a nurse.',
   },
   ar: {
-    urgent: 'نتيجة الفحص تحتاج إلى متابعة قريبًا. هذا ليس تشخيصًا.',
-    priority: 'نتيجة الفحص تحتاج إلى متابعة. هذا ليس تشخيصًا.',
-    routine: 'نتيجة الفحص تحتاج إلى متابعة روتينية. هذا ليس تشخيصًا.',
-    next: 'الخطوة التالية', who: 'المسؤول عن متابعتك', by: 'قبل', late: 'هذه الخطوة متأخرة. تم تنبيه فريق الرعاية وسيتواصل معك.', ok: 'أرسل 1 إذا فهمت، أو 2 للتحدث مع ممرضة.',
+    urgent: 'نتيجة فحصك تحتاج إلى متابعة قريبًا. هذا ليس تشخيصًا.',
+    priority: 'نتيجة فحصك تحتاج إلى متابعة. هذا ليس تشخيصًا.',
+    routine: 'نتيجة فحصك تحتاج إلى متابعة روتينية. هذا ليس تشخيصًا.',
+    next: 'الخطوة التالية', who: 'المسؤول عن متابعتك', by: 'في موعد أقصاه', late: 'هذه الخطوة متأخرة. تم تنبيه فريق الرعاية وسيتواصل معك.', ok: 'أرسل 1 إذا فهمت، أو 2 للتحدث مع ممرضة.',
     appt: 'أرسل 1 لتأكيد حضورك، أو 3 إذا كنت بحاجة إلى موعد آخر، أو 2 للتحدث مع ممرضة.',
   },
 };
 
 const AR = {
   notified: 'إبلاغ المريض', acknowledged: 'تأكيد فهم النتيجة', confirmatory: 'إجراء الفحص التأكيدي', referred: 'إرسال الإحالة',
-  accepted: 'قبول الإحالة', appointed: 'حضور الموعد', care: 'خطة العلاج أو المتابعة', closed: 'إغلاق الحالة بالوثائق',
-  'Screening program': 'برنامج الفحص', 'Care navigator': 'منسق الرعاية', 'Primary care': 'الرعاية الأولية',
+  accepted: 'قبول الإحالة', appointed: 'حضور الموعد', care: 'خطة العلاج أو المتابعة', closed: 'إغلاق الحالة مع التوثيق',
+  'Screening program': 'برنامج الفحص', 'Care navigator': 'منسق الرعاية', 'Primary care': 'الرعاية الصحية الأولية',
   'Specialist service': 'الخدمة التخصصية', 'Case owner (clinician)': 'الطبيب المسؤول عن الحالة',
 };
 
