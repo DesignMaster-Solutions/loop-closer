@@ -23,6 +23,14 @@ issued → patient notified → patient confirmed understanding → confirmatory
 
 The coordinator screen shows only the cases that need a human today, ranked escalation → rejected referral → overdue → unassigned, then by urgency and due date.
 
+## Review round (November 2026): what changed
+
+The review team asked for three things. All three are in the demo and covered by `test/followup.test.mjs`.
+
+- **Your own patient data.** "Add your own patient" takes a pseudonymised reference, programme, result, urgency, language, result date and case owner. "Start from an empty list" drops the simulated cohort. Cases are saved only in the browser. Every step is then recorded on the case (date, who, evidence), in order: a step cannot be skipped or dated before the previous one.
+- **End-to-end follow-up with automated alerts.** A demo clock ("Advance one day") drives the alerts: each case that slips past its service level alerts the owner of the late step, urgent ones escalate to the case owner clinician, hand-offs with no owner go to the programme coordinator. A missed appointment ("Patient did not attend") is flagged, alerts owner and case owner, and sets a rebooking deadline (48 h urgent, 5 days priority, 14 days routine). Owners can be assigned on any step. Closure records who signed, when, the evidence document and the outcome; it cannot close without an outcome.
+- **Interactive patient notifications.** Sending the message records "Patient notified". The patient's reply moves the case: 1 confirms understanding (the case advances), 2 opens a nurse question with a service level, and at the appointment step 1 confirms attendance and 3 asks for a new date (flag and alert to the owner). Arabic-Indic digits count; free text is never dropped, it becomes a question for the care navigator.
+
 ## Interoperability
 
 Results come in and case state goes out in the formats screening programs already use. The same pure module (`public/interop.mjs`) runs in the browser, in the API and in the tests.

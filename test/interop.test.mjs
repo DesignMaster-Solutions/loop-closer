@@ -168,7 +168,7 @@ test('FHIR export: a rejected referral is a rejected Task, closure carries the c
   const rej = { ...done(base, ['notified', 'acknowledged', 'confirmatory', 'referred']), referral: 'rejected' };
   const tasks = toFhirBundle(rej, NOW).entry.map((e) => e.resource).filter((x) => x.resourceType === 'Task');
   assert.equal(tasks.find((t) => t.code.coding[0].code === 'accepted').status, 'rejected');
-  const closed = close(done(base, ALL), { name: 'Dr. PHC', clinician: true }, NOW);
+  const closed = close(done(base, ALL), { name: 'Dr. PHC', clinician: true }, NOW, 'Adenoma removed, surveillance in 3 years');
   const res = toFhirBundle(closed, NOW).entry.map((e) => e.resource);
   assert.equal(res.find((x) => x.resourceType === 'Encounter').status, 'finished');
   assert.equal(res.find((x) => x.resourceType === 'CarePlan').status, 'completed');

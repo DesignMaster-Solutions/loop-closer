@@ -33,7 +33,7 @@ test('closure needs every step, evidence and a clinician', () => {
   assert.match(canClose(c).reason, /evidence/);
   c.events[6].evidence = 'plan.pdf';
   assert.throws(() => close(c, { name: 'Navigator', clinician: false }, '2026-11-06T08:00:00Z'), /clinician/);
-  const done = close(c, { name: 'Dr. X', clinician: true }, '2026-11-06T08:00:00Z');
+  const done = close(c, { name: 'Dr. X', clinician: true }, '2026-11-06T08:00:00Z', 'Benign, routine recall');
   assert.equal(status(done, '2026-11-07T08:00:00Z').stage, 'closed');
   assert.throws(() => close({ ...c, events: c.events.slice(0, 3) }, { name: 'Dr', clinician: true }, 'x'), /missing/);
 });

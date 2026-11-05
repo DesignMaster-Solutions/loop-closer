@@ -24,6 +24,9 @@ export const SLA_HOURS = {
 // Hours a patient-to-clinician or clinician-to-clinician question may wait for an answer. Illustrative too.
 export const CONSULT_SLA_HOURS = { urgent: 4, priority: 24, routine: 72 };
 
+// Hours to rebook after a missed appointment or a patient's request for a new date. Illustrative.
+export const REBOOK_HOURS = { urgent: 48, priority: 5 * 24, routine: 14 * 24 };
+
 const H = 3600e3;
 const idx = (id) => STEPS.findIndex((s) => s.id === id);
 
@@ -37,13 +40,23 @@ export function status(c, now) {
   const dueAt = new Date(new Date(last.at).getTime() + SLA_HOURS[c.urgency][next.id] * H).toISOString();
   const owner = c.owner?.[next.id] ?? null;
   const flags = [];
+  let due = dueAt;
+  // A miss or a reschedule request after the last step resets the clock to the rebooking deadline.
+  const since = (kind) => c.events.filter((e) => e.step === kind && e.at >= last.at).at(-1);
+  if (next.id === 'appointed') {
+    const miss = since('missed'), re = since('reschedule');
+    if (miss) flags.push('missed-visit');
+    if (re) flags.push('reschedule-requested');
+    const from = [miss?.at, re?.at].filter(Boolean).sort().at(-1);
+    if (from) due = new Date(new Date(from).getTime() + REBOOK_HOURS[c.urgency] * H).toISOString();
+  }
   if (!owner) flags.push('unassigned');
-  if (new Date(now) > new Date(dueAt)) flags.push('overdue');
+  if (new Date(now) > new Date(due)) flags.push('overdue');
   if (next.id === 'accepted' && c.referral === 'rejected') flags.push('referral-rejected');
   if (c.consults?.some((q) => !q.answer && new Date(now) - new Date(q.at) > CONSULT_SLA_HOURS[c.urgency] * H)) flags.push('consult-waiting');
   if (c.correction && !c.correction.reviewed) flags.push('result-corrected');
   if (c.urgency === 'urgent' && flags.length) flags.push('escalate');
-  return { stage: last.step, next: next.id, nextLabel: next.label, role: next.owner, owner, dueAt, flags };
+  return { stage: last.step, next: next.id, nextLabel: next.label, role: next.owner, owner, dueAt: due, flags, lastAt: last.at };
 }
 
 // Closure is a human decision with evidence: never automatic, never by a non-clinician.
@@ -56,11 +69,89 @@ export function canClose(c) {
   return { ok: true };
 }
 
-export function close(c, by, at) {
+// The closure record says who closed it, when, on what evidence and with what outcome.
+export function close(c, by, at, outcome) {
   if (!by?.clinician) throw new Error('closure requires a qualified clinician');
   const check = canClose(c);
   if (!check.ok) throw new Error(check.reason);
-  return { ...c, events: [...c.events, { step: 'closed', at, by: by.name }] };
+  if (!String(outcome ?? '').trim()) throw new Error('closure needs an outcome (what happened to the patient)');
+  const evidence = c.events.find((e) => e.step === 'care').evidence;
+  return { ...c, events: [...c.events, { step: 'closed', at, by: by.name, evidence, outcome: outcome.trim() }] };
+}
+
+const URGENCY = ['urgent', 'priority', 'routine'];
+const isDate = (t) => !Number.isNaN(Date.parse(t));
+const iso = (t) => new Date(t).toISOString();
+
+// A case typed in by a user (their own pseudonymised patient), instead of the simulated cohort.
+export function newCase({ id, patient, program, finding, confirm, specialist, urgency, lang = 'en', issuedAt, owner = {} }) {
+  if (!String(patient ?? '').trim()) throw new Error('patient reference is required');
+  if (!String(finding ?? '').trim()) throw new Error('screening finding is required');
+  if (!URGENCY.includes(urgency)) throw new Error(`urgency must be one of ${URGENCY.join(', ')}`);
+  if (!isDate(issuedAt)) throw new Error('result date is not a valid date');
+  return { id: id ?? `U-${Math.random().toString(36).slice(2, 7).toUpperCase()}`, patient: patient.trim(), program: program || 'Own case',
+    finding: finding.trim(), confirm: confirm || 'Confirmatory test', specialist: specialist || 'Specialist service', urgency,
+    lang: lang === 'ar' ? 'ar' : 'en', issuedAt: iso(issuedAt), events: [], owner: { ...owner }, custom: true };
+}
+
+// Record that the next step happened. Steps cannot be skipped or back-dated before the previous one.
+export function record(c, step, { at, by, evidence } = {}) {
+  if (step === 'closed') throw new Error('use close() to close: it needs a clinician and an outcome');
+  const s = status(c, at);
+  if (!s.next) throw new Error('case is already closed');
+  if (step !== s.next) throw new Error(`next step is ${s.next}, not ${step}`);
+  if (!isDate(at)) throw new Error('date is not a valid date');
+  if (iso(at) < iso(s.lastAt)) throw new Error('a step cannot be dated before the previous one');
+  const e = { step, at: iso(at), by: String(by ?? '').trim() || s.owner || s.role };
+  if (evidence) e.evidence = String(evidence).trim();
+  return { ...c, events: [...c.events, e] };
+}
+
+export function assign(c, step, name) {
+  if (!String(name ?? '').trim()) throw new Error('owner name is required');
+  return { ...c, owner: { ...c.owner, [step]: name.trim() } };
+}
+
+export function missedVisit(c, at, by) {
+  if (status(c, at).next !== 'appointed') throw new Error('no appointment is pending on this case');
+  return { ...c, events: [...c.events, { step: 'missed', at: iso(at), by }] };
+}
+
+// Automated alerts: what the system sends, to whom, for every case that slipped. Run on every tick.
+export const COORDINATOR = 'Programme coordinator';
+export function alerts(cases, now) {
+  const out = [];
+  for (const c of cases) {
+    const s = status(c, now);
+    if (!s.next) continue;
+    const head = c.owner?.closed;
+    const send = (to, kind, text) => { if (to && !out.some((a) => a.caseId === c.id && a.to === to && a.kind === kind)) out.push({ caseId: c.id, to, kind, text: `${c.id} (${c.urgency}): ${text}` }); };
+    const f = new Set(s.flags);
+    if (f.has('unassigned')) send(COORDINATOR, 'unassigned', `no owner for "${s.nextLabel}". Assign one.`);
+    if (f.has('missed-visit')) ['owner', 'head'].forEach((w) => send(w === 'owner' ? s.owner : head, 'missed-visit', `patient missed the appointment. Rebook by ${s.dueAt.slice(0, 10)}.`));
+    if (f.has('reschedule-requested')) send(s.owner ?? COORDINATOR, 'reschedule', `patient asked for a new appointment date. Rebook by ${s.dueAt.slice(0, 10)}.`);
+    if (f.has('overdue')) {
+      send(s.owner ?? COORDINATOR, 'overdue', `"${s.nextLabel}" overdue since ${s.dueAt.slice(0, 10)}.`);
+      if (f.has('escalate') && head !== s.owner) send(head, 'escalation', `urgent case, "${s.nextLabel}" overdue since ${s.dueAt.slice(0, 10)}. Escalated to you as case owner.`);
+    }
+    if (f.has('referral-rejected')) send(head ?? COORDINATOR, 'referral-rejected', 'referral was rejected. Re-refer or document why not.');
+    if (f.has('consult-waiting')) send(head ?? COORDINATOR, 'consult-waiting', 'a question is waiting past its service level.');
+    if (f.has('result-corrected')) send(head ?? COORDINATOR, 'result-corrected', 'the lab corrected the result. Review the case.');
+  }
+  return out;
+}
+
+// The patient's reply to the message moves the case. Arabic-Indic digits count; nothing is ever dropped.
+export function patientReply(c, text, at) {
+  const t = String(text ?? '').trim().replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+  const s = status(c, at);
+  const log = (n, effect) => ({ case: { ...n, inbox: [...(c.inbox ?? []), { at: iso(at), text: String(text), effect }] }, effect });
+  if (t === '1' && s.next === 'acknowledged') return log(record(c, 'acknowledged', { at, by: 'Patient (replied 1)' }), 'acknowledged');
+  if (t === '1' && s.next === 'appointed') return log({ ...c, events: [...c.events, { step: 'confirmed', at: iso(at), by: 'Patient (replied 1)' }] }, 'attendance-confirmed');
+  if (t === '3' && s.next === 'appointed') return log({ ...c, events: [...c.events, { step: 'reschedule', at: iso(at), by: 'Patient (replied 3)' }] }, 'reschedule');
+  const to = c.owner?.acknowledged ?? 'Care navigator';
+  const question = t === '2' ? 'Wants to talk to a nurse about the result' : `Patient wrote: "${String(text).slice(0, 300)}"`;
+  return log(requestConsult(c, { kind: 'patient-to-clinician', from: `Patient (replied ${t === '2' ? '2' : 'text'})`, to, question }, iso(at)), 'consult');
 }
 
 // kind: 'patient-to-clinician' (the patient replied 2) or 'clinician-to-clinician' (e-consult across providers).
@@ -72,7 +163,7 @@ export function answerConsult(c, i, answer, by, at) {
   return { ...c, consults: c.consults.map((q, k) => (k === i ? { ...q, answer, by, answeredAt: at } : q)) };
 }
 
-const RANK = { escalate: 0, 'result-corrected': 1, 'referral-rejected': 1, 'consult-waiting': 2, overdue: 3, unassigned: 4 };
+const RANK = { escalate: 0, 'result-corrected': 1, 'referral-rejected': 1, 'missed-visit': 1, 'consult-waiting': 2, 'reschedule-requested': 2, overdue: 3, unassigned: 4 };
 const U = { urgent: 0, priority: 1, routine: 2 };
 
 // The exception queue a coordinator works every morning: only cases that need a human.
@@ -91,12 +182,14 @@ const MSG = {
     priority: 'Your screening result needs a follow-up. This is not a diagnosis.',
     routine: 'Your screening result needs a routine follow-up. This is not a diagnosis.',
     next: 'Next step', who: 'Who is looking after you', by: 'By', late: 'This step is late. Your care team has been alerted and will contact you.', ok: 'Reply 1 if you understood, 2 to talk to a nurse.',
+    appt: 'Reply 1 to confirm you will attend, 3 if you need a new date, 2 to talk to a nurse.',
   },
   ar: {
     urgent: 'نتيجة الفحص تحتاج إلى متابعة قريبًا. هذا ليس تشخيصًا.',
     priority: 'نتيجة الفحص تحتاج إلى متابعة. هذا ليس تشخيصًا.',
     routine: 'نتيجة الفحص تحتاج إلى متابعة روتينية. هذا ليس تشخيصًا.',
     next: 'الخطوة التالية', who: 'المسؤول عن متابعتك', by: 'قبل', late: 'هذه الخطوة متأخرة. تم تنبيه فريق الرعاية وسيتواصل معك.', ok: 'أرسل 1 إذا فهمت، أو 2 للتحدث مع ممرضة.',
+    appt: 'أرسل 1 لتأكيد حضورك، أو 3 إذا كنت بحاجة إلى موعد آخر، أو 2 للتحدث مع ممرضة.',
   },
 };
 
@@ -112,7 +205,7 @@ export function patientMessage(c, now, lang = 'en') {
   const s = status(c, now);
   if (!s.next) return null;
   const ar = lang === 'ar';
-  return [m[c.urgency], `${m.next}: ${ar ? AR[s.next] : s.nextLabel}`, `${m.who}: ${s.owner ?? (ar ? AR[s.role] : s.role)}`, s.flags.includes('overdue') ? m.late : `${m.by}: ${s.dueAt.slice(0, 10)}`, m.ok].join('\n');
+  return [m[c.urgency], `${m.next}: ${ar ? AR[s.next] : s.nextLabel}`, `${m.who}: ${s.owner ?? (ar ? AR[s.role] : s.role)}`, s.flags.includes('overdue') ? m.late : `${m.by}: ${s.dueAt.slice(0, 10)}`, s.next === 'appointed' ? m.appt : m.ok].join('\n');
 }
 
 // Program metrics on a set of cases: the closure and patient-journey measures named by the challenge.

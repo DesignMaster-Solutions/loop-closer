@@ -29,7 +29,7 @@ const base = ingest([], parseMessage(oru)[0], NOW, routingFor).cases[0];
 const step = (c, steps) => ({ ...c, events: steps.map((s, i) => ({ step: s, at: new Date(Date.parse(c.issuedAt) + (i + 1) * 864e5).toISOString(), by: c.owner[s], evidence: s === 'care' ? 'Gastroenterology plan C-FIT-77120.pdf' : undefined })) });
 const midway = requestConsult(step(base, ['notified', 'acknowledged', 'confirmatory']), { kind: 'clinician-to-clinician', from: base.owner.confirmatory, to: base.specialist, question: 'Is colonoscopy the right next step for this patient?' }, '2026-11-06T09:00:00Z');
 const rejected = { ...step(base, ['notified', 'acknowledged', 'confirmatory', 'referred']), referral: 'rejected' };
-const closed = close(step(base, ['notified', 'acknowledged', 'confirmatory', 'referred', 'accepted', 'appointed', 'care']), { name: base.owner.closed, clinician: true }, NOW);
+const closed = close(step(base, ['notified', 'acknowledged', 'confirmatory', 'referred', 'accepted', 'appointed', 'care']), { name: base.owner.closed, clinician: true }, NOW, 'Adenoma removed, surveillance colonoscopy in 3 years');
 write('bundle-midway.json', JSON.stringify(toFhirBundle(midway, NOW), null, 2));
 write('bundle-referral-rejected.json', JSON.stringify(toFhirBundle(rejected, NOW), null, 2));
 write('bundle-closed.json', JSON.stringify(toFhirBundle(closed, NOW), null, 2));

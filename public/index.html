@@ -40,15 +40,63 @@
   button.act { font:inherit; padding:6px 12px; border-radius:6px; border:1px solid var(--teal); background:var(--teal); color:#fff; cursor:pointer; }
   button.act.alt { background:#fff; color:var(--teal); }
   button.act[disabled] { opacity:.45; cursor:not-allowed; }
+  .tag.missed-visit { background:#fde8e6; color:var(--red); } .tag.reschedule-requested { background:#fdf0e1; color:var(--amber); }
+  .bar { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; padding:0 24px 14px; }
+  .bar b { font-variant-numeric:tabular-nums; }
+  #own, #alerts { margin:0 24px 16px; }
+  form.grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; align-items:end; }
+  label { display:block; font-size:13px; color:var(--mute); }
+  input, select, textarea { display:block; width:100%; font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink); }
+  textarea { min-height:56px; }
+  .inline { display:flex; flex-wrap:wrap; gap:8px; align-items:end; margin:8px 0; }
+  .inline > label { flex:1 1 150px; }
+  .err { color:var(--red); font-size:13px; min-height:1em; margin:4px 0 0; }
+  .phone { border:1px solid var(--line); border-radius:12px; padding:10px; background:#fbfcfc; max-width:460px; }
+  .bubble { padding:6px 10px; border-radius:10px; margin:6px 0; white-space:pre-wrap; }
+  .bubble.in { background:#e6f2f1; margin-left:30%; } .bubble.out { background:#f1f3f5; margin-right:15%; }
+  .bubble[lang=ar] { direction:rtl; text-align:right; }
+  ul.alerts { margin:6px 0 0; padding-left:18px; max-height:220px; overflow:auto; }
+  ul.alerts li { margin:3px 0; } ul.alerts small { color:var(--mute); }
+  details > summary { cursor:pointer; font-weight:600; }
 </style>
 </head>
 <body>
 <header>
   <h1>Loop Closer</h1>
-  <p>Every actionable screening result has an owner, a due date and a documented closure. Simulated cohort, no real patient data.</p>
+  <p>Every actionable screening result has an owner, a due date and a documented closure. Simulated cohort by default; add your own pseudonymised patients below.</p>
 </header>
 <div class="kpis" id="kpis"></div>
+<div class="bar">
+  <span>Clock: <b id="clock"></b></span>
+  <button class="act alt" id="tick">Advance one day</button>
+  <span class="note">Moving the clock is how the automated alerts fire: every case that slips past its service level alerts its owner.</span>
+  <button class="act alt" id="reset">Reset demo</button>
+</div>
 <p class="note" id="scenario" style="margin:0;padding:0 24px 14px"></p>
+<section id="own">
+  <details id="own-box">
+    <summary>Add your own patient</summary>
+    <p class="note">Type a pseudonymised reference, never a name. Saved only in this browser. Then record each step on the case as it happens.</p>
+    <form class="grid" id="own-form">
+      <label>Patient reference<input name="patient" required placeholder="e.g. PSEUDO-1042" maxlength="40"></label>
+      <label>Screening programme<select name="program"><option>Colorectal (FIT)</option><option>Breast (mammography)</option><option>Diabetes (HbA1c)</option><option>Cervical (HPV)</option><option>Other</option></select></label>
+      <label>Screening result<input name="finding" required placeholder="e.g. Positive FIT" maxlength="80"></label>
+      <label>Confirmatory test<input name="confirm" placeholder="e.g. Colonoscopy" maxlength="60"></label>
+      <label>Specialist service<input name="specialist" placeholder="e.g. Gastroenterology" maxlength="60"></label>
+      <label>Urgency<select name="urgency"><option value="urgent">Urgent</option><option value="priority" selected>Priority</option><option value="routine">Routine</option></select></label>
+      <label>Patient language<select name="lang"><option value="en">English</option><option value="ar">Arabic</option></select></label>
+      <label>Result date<input name="issuedAt" type="date" required></label>
+      <label>Case owner (clinician)<input name="head" placeholder="Dr. ..." maxlength="60"></label>
+      <button class="act" type="submit">Add case</button>
+    </form>
+    <p class="err" id="own-err" role="alert"></p>
+    <p><button class="act alt" id="empty">Start from an empty list (my cases only)</button></p>
+  </details>
+</section>
+<section id="alerts">
+  <h2>Automated alerts at this clock <span class="note" id="alert-count"></span></h2>
+  <ul class="alerts" id="alert-list"></ul>
+</section>
 <section id="feed">
   <h2>Lab feed <span class="note">HL7 v2 and FHIR R4, test messages only. Nothing leaves this page.</span></h2>
   <div class="btns">
@@ -65,25 +113,39 @@
 </section>
 <main>
   <section>
-    <h2>Needs a human today <span class="note" id="count"></span></h2>
+    <h2><select id="view" aria-label="Which cases" style="display:inline-block;width:auto;font-weight:600">
+      <option value="work">Needs a human today</option><option value="open">All open cases</option><option value="closed">Closed cases</option></select>
+      <span class="note" id="count"></span></h2>
     <div id="list"></div>
   </section>
   <section id="detail"><p class="note">Pick a case.</p></section>
 </main>
 <script type="module">
-import { STEPS, status, canClose, close, worklist, patientMessage, metrics, requestConsult, answerConsult } from './loop.mjs';
-import { cohort, routingFor } from './cases.mjs';
+import { STEPS, status, canClose, close, worklist, patientMessage, metrics, requestConsult, answerConsult, newCase, record, assign, missedVisit, alerts, patientReply } from './loop.mjs';
+import { cohort, routingFor, STAFF } from './cases.mjs';
 import { parseMessage, ingest, reconcile, feedHealth, toFhirBundle } from './interop.mjs';
 
 const NOW = '2026-11-15T09:00:00Z';
-let cases = cohort(NOW);
+const KEY = 'loop-closer-v2';
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem(KEY)); } catch {}
+let cases = saved?.cases ?? cohort(NOW);
+let now = saved?.now ?? NOW;
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ cases, now })); } catch {} };
 const before = metrics(cases, NOW), after = metrics(cohort(NOW, 60, 7, 0.8), NOW);
 const $ = (s) => document.querySelector(s);
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
 const day = (iso) => iso ? iso.slice(0, 10) : '';
 
 function render(sel) {
-  const m = metrics(cases, NOW);
+  save();
+  const m = metrics(cases, now);
+  $('#clock').textContent = now.slice(0, 10);
+  document.body.dataset.now = now;
+  const al = alerts(cases, now);
+  $('#alert-count').textContent = `(${al.length})`;
+  $('#alert-list').innerHTML = al.slice(0, 60).map((a) => `<li><b>To ${esc(a.to)}</b> · ${esc(a.kind)}<br><small>${esc(a.text)}</small></li>`).join('') + (al.length > 60 ? `<li class="note">and ${al.length - 60} more</li>` : '') || '<li class="note">Nothing slipped. No alert sent.</li>';
+  document.body.dataset.alerts = String(al.length);
   $('#kpis').innerHTML = [
     [m.total, 'actionable results'], [m.closed, 'closed with evidence'], [m.overdue, 'overdue now'],
     [m.medianDaysToSpecialist?.toFixed(0) ?? '-', 'median days to specialist'],
@@ -92,39 +154,75 @@ function render(sel) {
   $('#scenario').innerHTML = `<b>Simulated scenario, same 60 cases:</b> left silent, ${before.closed} closed and ${before.stalled} stalled unseen
     (${Object.entries(before.stallReasons).map(([k, v]) => `${v} ${esc(k)}`).join(', ')}). With the worklist, assuming coordinators resolve 80% of exceptions two days after the breach,
     ${after.closed} closed and ${after.stalled} stalled. This is a model of the drop-offs, not a measured outcome.`;
-  const wl = worklist(cases, NOW);
+  const view = $('#view').value;
+  const all = cases.map((c) => ({ c, s: status(c, now) }));
+  const wl = view === 'work' ? worklist(cases, now) : all.filter(({ s }) => (view === 'closed') === !s.next).reverse();
   $('#count').textContent = `(${wl.length})`;
   $('#list').innerHTML = wl.map(({ c, s }) => `<button class="row" data-id="${c.id}" aria-current="${c.id === sel}">
-    <b>${c.id}</b> · ${esc(c.program)} · ${c.urgency}<br>
+    <b>${c.id}</b>${c.custom ? ' · ' + esc(c.patient) : ''} · ${esc(c.program)} · ${c.urgency}<br>
     ${s.flags.map((f) => `<span class="tag ${f}">${f}</span>`).join('')}
-    <small>Next: ${esc(s.nextLabel)} · ${esc(s.owner ?? 'no owner (' + s.role + ')')} · due ${day(s.dueAt)}</small></button>`).join('');
-  if (sel) detail(cases.find((c) => c.id === sel));
+    <small>${s.next ? `Next: ${esc(s.nextLabel)} · ${esc(s.owner ?? 'no owner (' + s.role + ')')} · due ${day(s.dueAt)}` : 'Closed with evidence'}</small></button>`).join('') || '<p class="note">No cases here.</p>';
+  const pick = cases.find((c) => c.id === sel);
+  if (pick) detail(pick); else $('#detail').innerHTML = '<p class="note">Pick a case.</p>';
 }
 
 function detail(c) {
-  const s = status(c, NOW);
+  const s = status(c, now);
   const done = new Map(c.events.map((e) => [e.step, e]));
   const tl = STEPS.map((st) => {
     const e = st.id === 'issued' ? { at: c.issuedAt, by: c.program } : done.get(st.id);
     const cls = e ? 'done' : st.id === s.next ? 'now' : '';
     const who = e ? `${day(e.at)} · ${esc(e.by ?? '')}${e.evidence ? ' · ' + esc(e.evidence) : ''}`
       : st.id === s.next ? `due ${day(s.dueAt)} · ${esc(s.owner ?? 'UNASSIGNED: ' + st.owner)}` : esc(c.owner?.[st.id] ?? st.owner);
-    return `<li class="${cls}">${esc(st.label)}<br><small>${who}</small></li>`;
+    const extra = st.id === 'appointed' ? c.events.filter((x) => ['missed', 'reschedule', 'confirmed'].includes(x.step))
+      .map((x) => `<br><small>${day(x.at)} · ${x.step === 'missed' ? 'Missed visit' : x.step === 'reschedule' ? 'Patient asked for a new date' : 'Patient confirmed attendance'}</small>`).join('') : '';
+    const out = st.id === 'closed' && e?.outcome ? `<br><small><b>Outcome:</b> ${esc(e.outcome)}</small>` : '';
+    return `<li class="${cls}">${esc(st.label)}<br><small>${who}</small>${extra}${out}</li>`;
   }).join('');
   const check = canClose(c);
-  const msg = patientMessage(c, NOW, c.lang);
+  const msg = patientMessage(c, now, c.lang);
+  const names = [...new Set(Object.values(STAFF).flat())];
   $('#detail').innerHTML = `<h2>${c.id} · ${esc(c.finding)} → ${esc(c.confirm)} → ${esc(c.specialist)} (${c.urgency})</h2>
     <ol class="tl">${tl}</ol>
-    ${msg ? `<h2 style="margin-top:14px">Message the patient sees (${c.lang === 'ar' ? 'Arabic' : 'English'})</h2><pre lang="${c.lang}">${esc(msg)}</pre>` : ''}
+    ${s.next && s.next !== 'closed' ? `<h2 style="margin-top:14px">Record the next step: ${esc(s.nextLabel)}</h2>
+      <div class="inline"><label>Date<input type="date" id="rec-at" value="${day(now)}"></label>
+      <label>Done by<input id="rec-by" value="${esc(s.owner ?? '')}" placeholder="${esc(s.role)}" maxlength="60"></label>
+      ${s.next === 'care' ? '<label>Evidence document<input id="rec-ev" placeholder="e.g. plan.pdf" maxlength="80"></label>' : ''}
+      <button class="act" id="rec">Record</button>
+      ${s.next === 'appointed' ? '<button class="act alt" id="missed">Patient did not attend</button>' : ''}</div>
+      <div class="inline"><label>Owner of this step<input id="own-name" list="staff" value="${esc(s.owner ?? '')}" placeholder="Assign someone" maxlength="60"></label>
+      <button class="act alt" id="assign">Assign</button></div>
+      <datalist id="staff">${names.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+      <p class="err" id="rec-err" role="alert"></p>` : ''}
+    ${msg ? `<h2 style="margin-top:14px">Patient's phone (${c.lang === 'ar' ? 'Arabic' : 'English'})</h2>
+      <div class="phone"><div class="bubble out" lang="${c.lang}">${esc(msg)}</div>
+      ${(c.inbox ?? []).map((r) => `<div class="bubble in">${esc(r.text)}</div><small class="note">${day(r.at)} · ${esc(r.effect)}</small>`).join('')}
+      ${s.next === 'notified' ? '<p><button class="act" id="send">Send this message</button> <span class="note">Sending records "Patient notified".</span></p>'
+        : `<div class="inline"><label>Patient replies<input id="reply" placeholder="1, 2, 3 or free text" maxlength="300"></label><button class="act" id="reply-go">Reply</button>
+           <button class="act alt" data-reply="1">1</button><button class="act alt" data-reply="2">2</button>${s.next === 'appointed' ? '<button class="act alt" data-reply="3">3</button>' : ''}</div>`}
+      <p class="out" id="reply-out" aria-live="polite"></p></div>` : ''}
     <h2 style="margin-top:14px">Consultations</h2>
     ${(c.consults ?? []).map((q, i) => `<p>${esc(q.from)} → ${esc(q.to)}: ${esc(q.question)}<br><small class="note">${q.answer ? esc(q.answer) + ' · ' + esc(q.by) : `Waiting since ${day(q.at)}`}</small>
       ${q.answer ? '' : `<button class="act" data-answer="${i}">Record answer</button>`}</p>`).join('')}
     <p><button class="act alt" id="ask-nurse">Patient asked for a nurse</button> <button class="act alt" id="ask-spec">Ask ${esc(c.specialist)}</button></p>
-    ${s.next ? `<p><button class="act" id="close" ${check.ok ? '' : 'disabled'}>Close case (clinician sign-off)</button>
-      <span class="note">${check.ok ? 'All steps documented.' : 'Cannot close: ' + esc(check.reason)}</span></p>` : '<p class="note">Closed.</p>'}
+    ${s.next ? `<h2 style="margin-top:14px">Closure</h2>
+      ${check.ok ? `<label>Outcome (what happened to the patient)<textarea id="outcome" maxlength="300" placeholder="e.g. Adenoma removed, surveillance colonoscopy in 3 years"></textarea></label>` : ''}
+      <p><button class="act" id="close" ${check.ok ? '' : 'disabled'}>Close case (clinician sign-off)</button>
+      <span class="note">${check.ok ? `Signed by ${esc(c.owner?.closed ?? 'the case owner')}. Evidence: ${esc(c.events.find((x) => x.step === 'care').evidence)}.` : 'Cannot close: ' + esc(check.reason)}</span></p>
+      <p class="err" id="close-err" role="alert"></p>`
+      : (() => { const z = c.events.find((x) => x.step === 'closed'); return `<p><b>Closed</b> ${day(z.at)} by ${esc(z.by)}. Evidence: ${esc(z.evidence ?? c.events.find((x) => x.step === 'care')?.evidence ?? '')}.${z.outcome ? ` Outcome: ${esc(z.outcome)}.` : ''}</p>`; })()}
     ${c.correction && !c.correction.reviewed ? `<p><b>The lab ${c.correction.status === 'cancelled' ? 'cancelled' : 'corrected'} this result${c.correction.status === 'corrected' ? ` to "${esc(c.correction.value)}"` : ''}.</b> A clinician decides what happens to the case. <button class="act" id="reviewed">Mark reviewed by clinician</button></p>` : ''}
     <p><button class="act alt" id="export">Download this case as a FHIR R4 Bundle</button> <span class="note">Tasks, referral, messages, encounter, care plan and provenance. Passes the HL7 validator.</span></p>`;
   const put = (n) => { cases[cases.indexOf(c)] = n; render(c.id); };
+  const at = (v) => v ? `${v}T${now.slice(11)}` : now;
+  const tryPut = (fn, errSel) => { try { put(fn()); } catch (err) { $(errSel).textContent = err.message; } };
+  $('#rec')?.addEventListener('click', () => tryPut(() => record(c, s.next, { at: at($('#rec-at').value), by: $('#rec-by').value, evidence: $('#rec-ev')?.value }), '#rec-err'));
+  $('#missed')?.addEventListener('click', () => tryPut(() => missedVisit(c, at($('#rec-at').value), $('#rec-by').value || s.owner), '#rec-err'));
+  $('#assign')?.addEventListener('click', () => tryPut(() => assign(c, s.next, $('#own-name').value), '#rec-err'));
+  $('#send')?.addEventListener('click', () => put(record(c, 'notified', { at: now, by: 'Automated message (SMS/WhatsApp)' })));
+  const reply = (t) => { if (!t.trim()) return; const r = patientReply(c, t, now); put(r.case); $('#reply-out').textContent = SAYS[r.effect]; document.body.dataset.reply = r.effect; };
+  $('#reply-go')?.addEventListener('click', () => reply($('#reply').value));
+  document.querySelectorAll('[data-reply]').forEach((b) => b.addEventListener('click', () => reply(b.dataset.reply)));
   $('#ask-nurse')?.addEventListener('click', () => put(requestConsult(c, { kind: 'patient-to-clinician', from: 'Patient (replied 2)', to: c.owner?.acknowledged ?? 'Care navigator', question: 'Wants to talk to a nurse about the result' }, NOW)));
   $('#ask-spec')?.addEventListener('click', () => put(requestConsult(c, { kind: 'clinician-to-clinician', from: c.owner?.confirmatory ?? 'Primary care', to: c.specialist, question: `Is ${c.confirm} the right next step, or a direct referral?` }, NOW)));
   document.querySelectorAll('[data-answer]').forEach((b) => b.addEventListener('click', () => put(answerConsult(c, +b.dataset.answer, 'Answered and recorded on the case', c.consults[+b.dataset.answer].to, NOW))));
@@ -134,12 +232,11 @@ function detail(c) {
     const a = Object.assign(document.createElement('a'), { href: url, download: `${c.id}.fhir.json` });
     a.click(); URL.revokeObjectURL(url);
   });
-  $('#close')?.addEventListener('click', () => {
-    const i = cases.indexOf(c);
-    cases[i] = close(c, { name: c.owner?.closed ?? 'Case owner', clinician: true }, NOW);
-    render(c.id);
-  });
+  $('#close')?.addEventListener('click', () => tryPut(() => close(c, { name: c.owner?.closed ?? 'Case owner', clinician: true }, now, $('#outcome')?.value), '#close-err'));
 }
+
+const SAYS = { acknowledged: 'Reply 1: the case moved to "Patient confirmed understanding".', 'attendance-confirmed': 'Reply 1: attendance confirmed on the case.',
+  reschedule: 'Reply 3: rebooking request sent to the step owner.', consult: 'Sent to the care navigator as a question, with a service level.' };
 
 const FIT = '29771-3^Hemoglobin [Presence] in Stool from gastrointestinal lower by Immunoassay^LN';
 const oru = (acc, code, type, value, st = 'F') => [
@@ -168,7 +265,7 @@ $('#feed').addEventListener('click', (e) => {
   document.body.dataset.feed = kind;
   if (kind === 'reconcile') {
     const { missing } = reconcile([...cases.filter((c) => c.accession).map((c) => c.accession), ...seen, 'FIT-77121'], cases, seen);
-    const h = feedHealth(lastMessageAt, NOW);
+    const h = feedHealth(lastMessageAt, now);
     out.innerHTML = `<b>Lab list against cases:</b> ${missing.length} result${missing.length === 1 ? '' : 's'} issued and never received (${missing.map(esc).join(', ')}). Listed for the coordinator so they cannot vanish. Feed last heard ${h.silentHours.toFixed(1)} h ago: ${h.stale ? 'STALE, alert' : 'healthy'}.`;
     pre.hidden = true;
     for (const m of missing) if (!review.some((x) => x.accession === m)) review.push({ accession: m, why: 'the lab issued it and it never arrived' });
@@ -179,11 +276,11 @@ $('#feed').addEventListener('click', (e) => {
   const text = MESSAGES[kind];
   pre.textContent = text; pre.hidden = false;
   const [r] = parseMessage(text);
-  const res = ingest(cases, r, NOW, routingFor);
+  const res = ingest(cases, r, now, routingFor);
   cases = res.cases;
   if (res.action === 'not-actionable' || res.action === 'needs-review') seen.push(r.accession);
   if (res.action === 'needs-review' && !review.some((x) => x.accession === r.accession)) { review.push({ accession: r.accession, why: res.reason }); showReview(); }
-  lastMessageAt = NOW;
+  lastMessageAt = now;
   out.innerHTML = `<b>${esc(SAID[res.action])}.</b> ${esc(r.source === 'fhir' ? 'FHIR R4' : 'HL7 v2')} · ${esc(r.accession)} · ${esc(r.display ?? r.loinc ?? '')}: ${esc(r.value)}${res.reason ? ` · rule: ${esc(res.reason)}` : ''}`;
   document.body.dataset.lastAction = res.action;
   document.body.dataset.cases = String(cases.length);
@@ -191,7 +288,27 @@ $('#feed').addEventListener('click', (e) => {
 });
 
 $('#list').addEventListener('click', (e) => { const b = e.target.closest('.row'); if (b) render(b.dataset.id); });
-render(worklist(cases, NOW)[0]?.c.id);
+$('#view').addEventListener('change', () => render());
+$('#tick').addEventListener('click', () => { now = new Date(new Date(now).getTime() + 864e5).toISOString(); render($('.row[aria-current=true]')?.dataset.id); });
+$('#reset').addEventListener('click', () => { localStorage.removeItem(KEY); cases = cohort(NOW); now = NOW; $('#view').value = 'work'; render(worklist(cases, now)[0]?.c.id); });
+$('#empty').addEventListener('click', () => { cases = cases.filter((c) => c.custom); $('#view').value = 'open'; render(cases[0]?.id); });
+$('#own-form').issuedAt.value = day(now);
+$('#own-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target));
+  try {
+    const owner = { ...routingFor(), ...(f.head.trim() ? { closed: f.head.trim() } : {}) };
+    const c = newCase({ ...f, issuedAt: `${f.issuedAt}T${now.slice(11)}`, owner });
+    if (c.issuedAt > now) throw new Error('result date is after the clock date');
+    cases = [...cases, c];
+    $('#own-err').textContent = '';
+    $('#view').value = 'open';
+    e.target.reset(); e.target.issuedAt.value = day(now);
+    render(c.id);
+    document.body.dataset.added = c.id;
+  } catch (err) { $('#own-err').textContent = err.message; }
+});
+render(worklist(cases, now)[0]?.c.id);
 </script>
 </body>
 </html>

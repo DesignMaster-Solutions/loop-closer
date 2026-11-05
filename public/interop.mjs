@@ -201,7 +201,7 @@ export function toFhirBundle(c, now) {
     const doc = care.evidence ? add({ resourceType: 'DocumentReference', id: `lc-doc-${key}`, status: 'current', subject: patient, date: care.at, content: [{ attachment: { contentType: 'application/pdf', title: care.evidence } }] }) : null;
     const closed = ev('closed');
     const plan = add({ resourceType: 'CarePlan', id: `lc-plan-${key}`, status: closed ? 'completed' : 'active', intent: 'plan', subject: patient, created: care.at, title: `Treatment or surveillance plan, ${c.specialist}`,
-      ...(care.by ? { author: { display: care.by } } : {}), ...(doc ? { supportingInfo: [doc, report] } : { supportingInfo: [report] }) });
+      ...(care.by ? { author: { display: care.by } } : {}), ...(closed?.outcome ? { note: [{ text: `Closure outcome: ${closed.outcome}` }] } : {}), ...(doc ? { supportingInfo: [doc, report] } : { supportingInfo: [report] }) });
     if (closed) add({ resourceType: 'Provenance', id: `lc-prov-${key}`, target: [plan, report], recorded: closed.at, agent: [{ who: { display: closed.by } }] });
   }
   return { resourceType: 'Bundle', type: 'transaction', entry: res.map((r) => ({ fullUrl: `${FHIR_BASE}/${r.resourceType}/${r.id}`, resource: r, request: { method: 'PUT', url: `${r.resourceType}/${r.id}` } })) };
