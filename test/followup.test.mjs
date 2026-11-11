@@ -92,3 +92,16 @@ test('at the appointment step the patient can confirm (1) or ask for a new date 
   assert.equal(re.effect, 'reschedule');
   assert.ok(status(re.case, '2026-11-11T09:00:00Z').flags.includes('reschedule-requested'));
 });
+
+// Found walking the live demo: the message offers "Reply 1 if you understood" at every step, so a 1 after
+// understanding is already on the case must not turn into a nurse question on the coordinator's worklist.
+test('a repeated 1 after understanding is recorded is kept on the phone thread and opens no consult', () => {
+  let c = mine();
+  for (const step of ['notified', 'acknowledged']) c = record(c, step, { at: '2026-11-11T08:00:00Z', by: owners[step] });
+  const again = patientReply(c, '1', '2026-11-11T09:00:00Z');
+  assert.equal(again.effect, 'understood');
+  assert.equal((again.case.consults ?? []).length, 0);
+  assert.equal(again.case.events.length, c.events.length);
+  assert.deepEqual(again.case.inbox.map((r) => [r.text, r.effect]), [['1', 'understood']]);
+  assert.ok(!status(again.case, '2026-11-11T09:00:00Z').flags.includes('consult-waiting'));
+});

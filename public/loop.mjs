@@ -150,6 +150,7 @@ export function patientReply(c, text, at) {
   if (t === '1' && s.next === 'acknowledged') return log(record(c, 'acknowledged', { at, by: 'Patient (replied 1)' }), 'acknowledged');
   if (t === '1' && s.next === 'appointed') return log({ ...c, events: [...c.events, { step: 'confirmed', at: iso(at), by: 'Patient (replied 1)' }] }, 'attendance-confirmed');
   if (t === '3' && s.next === 'appointed') return log({ ...c, events: [...c.events, { step: 'reschedule', at: iso(at), by: 'Patient (replied 3)' }] }, 'reschedule');
+  if (t === '1') return log(c, 'understood'); // the message offers 1 at every step: a repeated 1 is not a question
   const to = c.owner?.acknowledged ?? 'Care navigator';
   const question = t === '2' ? 'Wants to talk to a nurse about the result' : `Patient wrote: "${String(text).slice(0, 300)}"`;
   return log(requestConsult(c, { kind: 'patient-to-clinician', from: `Patient (replied ${t === '2' ? '2' : 'text'})`, to, question }, iso(at)), 'consult');

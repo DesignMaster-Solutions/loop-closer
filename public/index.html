@@ -236,7 +236,8 @@ function detail(c) {
 }
 
 const SAYS = { acknowledged: 'Reply 1: the case moved to "Patient confirmed understanding".', 'attendance-confirmed': 'Reply 1: attendance confirmed on the case.',
-  reschedule: 'Reply 3: rebooking request sent to the step owner.', consult: 'Sent to the care navigator as a question, with a service level.' };
+  reschedule: 'Reply 3: rebooking request sent to the step owner.', consult: 'Sent to the care navigator as a question, with a service level.',
+  understood: 'Reply 1: understanding is already on the case, so the reply is kept on the thread and nobody is paged.' };
 
 const FIT = '29771-3^Hemoglobin [Presence] in Stool from gastrointestinal lower by Immunoassay^LN';
 const oru = (acc, code, type, value, st = 'F') => [
