@@ -2,7 +2,7 @@
 // owner assignment, documented closure and patient replies that move the case.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { status, newCase, record, assign, missedVisit, alerts, close, patientReply, patientMessage } from '../public/loop.mjs';
+import { status, newCase, record, assign, missedVisit, rebook, alerts, close, patientReply, patientMessage } from '../public/loop.mjs';
 
 const T0 = '2026-11-10T08:00:00Z';
 const owners = { notified: 'Lab', acknowledged: 'Nav', confirmatory: 'GP', referred: 'GP', accepted: 'Spec', appointed: 'Spec', care: 'Spec', closed: 'Dr. Case' };
@@ -104,4 +104,40 @@ test('a repeated 1 after understanding is recorded is kept on the phone thread a
   assert.equal(again.case.events.length, c.events.length);
   assert.deepEqual(again.case.inbox.map((r) => [r.text, r.effect]), [['1', 'understood']]);
   assert.ok(!status(again.case, '2026-11-11T09:00:00Z').flags.includes('consult-waiting'));
+});
+
+test('a new appointment date answers the miss: the alert stops, the clock runs to the booked day, and a second miss reopens it', () => {
+  let c = mine();
+  for (const [step, at] of [['notified', '2026-11-10T09:00:00Z'], ['acknowledged', '2026-11-10T10:00:00Z'], ['confirmatory', '2026-11-11T10:00:00Z'], ['referred', '2026-11-11T12:00:00Z'], ['accepted', '2026-11-12T08:00:00Z']]) {
+    c = record(c, step, { at, by: owners[step] });
+  }
+  assert.throws(() => rebook(mine(), '2026-11-20', T0, 'Spec'), /appointment/);
+  c = missedVisit(c, '2026-11-14T09:00:00Z', 'Spec');
+  assert.throws(() => rebook(c, 'soon', '2026-11-15T09:00:00Z', 'Spec'), /valid date/);
+  assert.throws(() => rebook(c, '2026-11-13', '2026-11-15T09:00:00Z', 'Spec'), /past/);
+  c = rebook(c, '2026-11-24', '2026-11-15T09:00:00Z', 'Spec');
+  const s = status(c, '2026-11-20T09:00:00Z'); // 6 days after the miss: without the booking this was overdue and escalated
+  assert.deepEqual(s.flags, []);
+  assert.equal(s.dueAt.slice(0, 10), '2026-11-24');
+  assert.equal(alerts([c], '2026-11-20T09:00:00Z').length, 0);
+  assert.match(patientMessage(c, '2026-11-20T09:00:00Z'), /By: 2026-11-24/);
+  assert.ok(status(c, '2026-11-25T09:00:00Z').flags.includes('overdue')); // the booked day passed with no attendance on record
+  const again = missedVisit(c, '2026-11-24T12:00:00Z', 'Spec');
+  assert.ok(status(again, '2026-11-24T13:00:00Z').flags.includes('missed-visit'));
+  const asked = patientReply(c, '3', '2026-11-21T09:00:00Z').case; // the patient cannot make the new date either
+  assert.ok(status(asked, '2026-11-21T10:00:00Z').flags.includes('reschedule-requested'));
+});
+
+test('a patient question on a closed case still reaches someone once it waits past its service level', () => {
+  let c = mine();
+  for (const [step, at] of [['notified', '2026-11-10T09:00:00Z'], ['acknowledged', '2026-11-10T10:00:00Z'], ['confirmatory', '2026-11-11T10:00:00Z'], ['referred', '2026-11-11T12:00:00Z'], ['accepted', '2026-11-12T08:00:00Z'], ['appointed', '2026-11-13T08:00:00Z']]) {
+    c = record(c, step, { at, by: owners[step] });
+  }
+  c = record(c, 'care', { at: '2026-11-14T08:00:00Z', by: 'Spec', evidence: 'plan.pdf' });
+  c = close(c, { name: 'Dr. Case', clinician: true }, '2026-11-15T08:00:00Z', 'Polyp removed');
+  c = patientReply(c, 'I am bleeding again', '2026-11-20T08:00:00Z').case;
+  const s = status(c, '2026-11-20T13:00:00Z'); // urgent consult: 4 h
+  assert.equal(s.stage, 'closed');
+  assert.deepEqual(s.flags, ['consult-waiting', 'escalate']);
+  assert.ok(alerts([c], '2026-11-20T13:00:00Z').some((a) => a.to === 'Dr. Case' && a.kind === 'consult-waiting'));
 });

@@ -35,10 +35,11 @@ export function status(c, now) {
   const done = c.events.filter((e) => idx(e.step) >= 0).sort((a, b) => idx(a.step) - idx(b.step));
   const last = done.length ? done[done.length - 1] : { step: 'issued', at: c.issuedAt };
   const i = idx(last.step);
-  // A lab correction that lands after closure still needs a clinician: the case stays closed, the flag goes on the worklist.
+  const waiting = c.consults?.some((q) => !q.answer && new Date(now) - new Date(q.at) > CONSULT_SLA_HOURS[c.urgency] * H);
+  // A lab correction or a patient question that lands after closure still needs a person: the case stays closed, the flag goes on the worklist.
   if (last.step === 'closed') {
-    const late = c.correction && !c.correction.reviewed;
-    return { stage: 'closed', next: null, owner: null, dueAt: null, flags: late ? ['result-corrected', ...(c.urgency === 'urgent' ? ['escalate'] : [])] : [] };
+    const late = [...(c.correction && !c.correction.reviewed ? ['result-corrected'] : []), ...(waiting ? ['consult-waiting'] : [])];
+    return { stage: 'closed', next: null, owner: null, dueAt: null, flags: late.length && c.urgency === 'urgent' ? [...late, 'escalate'] : late };
   }
   const next = STEPS[i + 1];
   const dueAt = new Date(new Date(last.at).getTime() + SLA_HOURS[c.urgency][next.id] * H).toISOString();
@@ -46,18 +47,21 @@ export function status(c, now) {
   const flags = [];
   let due = dueAt;
   // A miss or a reschedule request after the last step resets the clock to the rebooking deadline.
-  const since = (kind) => c.events.filter((e) => e.step === kind && e.at >= last.at).at(-1);
+  // A new booking answers the misses and requests before it: the clock then runs to the booked day.
   if (next.id === 'appointed') {
-    const miss = since('missed'), re = since('reschedule');
-    if (miss) flags.push('missed-visit');
-    if (re) flags.push('reschedule-requested');
-    const from = [miss?.at, re?.at].filter(Boolean).sort().at(-1);
+    const ev = c.events.filter((e) => ['missed', 'reschedule', 'rebooked'].includes(e.step) && e.at >= last.at);
+    const book = ev.findLastIndex((e) => e.step === 'rebooked');
+    const open = ev.slice(book + 1);
+    if (open.some((e) => e.step === 'missed')) flags.push('missed-visit');
+    if (open.some((e) => e.step === 'reschedule')) flags.push('reschedule-requested');
+    const from = open.map((e) => e.at).sort().at(-1);
     if (from) due = new Date(new Date(from).getTime() + REBOOK_HOURS[c.urgency] * H).toISOString();
+    else if (book >= 0) due = ev[book].for;
   }
   if (!owner) flags.push('unassigned');
   if (new Date(now) > new Date(due)) flags.push('overdue');
   if (next.id === 'accepted' && c.referral === 'rejected') flags.push('referral-rejected');
-  if (c.consults?.some((q) => !q.answer && new Date(now) - new Date(q.at) > CONSULT_SLA_HOURS[c.urgency] * H)) flags.push('consult-waiting');
+  if (waiting) flags.push('consult-waiting');
   if (c.correction && !c.correction.reviewed) flags.push('result-corrected');
   if (c.urgency === 'urgent' && flags.length) flags.push('escalate');
   return { stage: last.step, next: next.id, nextLabel: next.label, role: next.owner, owner, dueAt: due, flags, lastAt: last.at };
@@ -114,6 +118,15 @@ export function record(c, step, { at, by, evidence } = {}) {
 export function assign(c, step, name) {
   if (!String(name ?? '').trim()) throw new Error('owner name is required');
   return { ...c, owner: { ...c.owner, [step]: name.trim() } };
+}
+
+// The new appointment date, recorded by whoever rebooked. The day itself is allowed: due is the end of that day.
+export function rebook(c, date, at, by) {
+  if (status(c, at).next !== 'appointed') throw new Error('no appointment is pending on this case');
+  if (!isDate(date)) throw new Error('new appointment date is not a valid date');
+  const end = new Date(new Date(date).setUTCHours(23, 59, 59, 999)).toISOString();
+  if (end < iso(at)) throw new Error('new appointment date is in the past');
+  return { ...c, events: [...c.events, { step: 'rebooked', at: iso(at), by, for: end }] };
 }
 
 export function missedVisit(c, at, by) {

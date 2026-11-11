@@ -121,7 +121,7 @@
   <section id="detail"><p class="note">Pick a case.</p></section>
 </main>
 <script type="module">
-import { STEPS, status, canClose, close, worklist, patientMessage, metrics, requestConsult, answerConsult, newCase, record, assign, missedVisit, alerts, patientReply } from './loop.mjs';
+import { STEPS, status, canClose, close, worklist, patientMessage, metrics, requestConsult, answerConsult, newCase, record, assign, missedVisit, rebook, alerts, patientReply } from './loop.mjs';
 import { cohort, routingFor, STAFF } from './cases.mjs';
 import { parseMessage, ingest, reconcile, feedHealth, toFhirBundle } from './interop.mjs';
 
@@ -174,8 +174,8 @@ function detail(c) {
     const cls = e ? 'done' : st.id === s.next ? 'now' : '';
     const who = e ? `${day(e.at)} · ${esc(e.by ?? '')}${e.evidence ? ' · ' + esc(e.evidence) : ''}`
       : st.id === s.next ? `due ${day(s.dueAt)} · ${esc(s.owner ?? 'UNASSIGNED: ' + st.owner)}` : esc(c.owner?.[st.id] ?? st.owner);
-    const extra = st.id === 'appointed' ? c.events.filter((x) => ['missed', 'reschedule', 'confirmed'].includes(x.step))
-      .map((x) => `<br><small>${day(x.at)} · ${x.step === 'missed' ? 'Missed visit' : x.step === 'reschedule' ? 'Patient asked for a new date' : 'Patient confirmed attendance'}</small>`).join('') : '';
+    const extra = st.id === 'appointed' ? c.events.filter((x) => ['missed', 'reschedule', 'confirmed', 'rebooked'].includes(x.step))
+      .map((x) => `<br><small>${day(x.at)} · ${x.step === 'missed' ? 'Missed visit' : x.step === 'reschedule' ? 'Patient asked for a new date' : x.step === 'rebooked' ? `New date booked: ${day(x.for)} · ${esc(x.by ?? '')}` : 'Patient confirmed attendance'}</small>`).join('') : '';
     const out = st.id === 'closed' && e?.outcome ? `<br><small><b>Outcome:</b> ${esc(e.outcome)}</small>` : '';
     return `<li class="${cls}">${esc(st.label)}<br><small>${who}</small>${extra}${out}</li>`;
   }).join('');
@@ -190,6 +190,8 @@ function detail(c) {
       ${s.next === 'care' ? '<label>Evidence document<input id="rec-ev" placeholder="e.g. plan.pdf" maxlength="80"></label>' : ''}
       <button class="act" id="rec">Record</button>
       ${s.next === 'appointed' ? '<button class="act alt" id="missed">Patient did not attend</button>' : ''}</div>
+      ${s.flags.includes('missed-visit') || s.flags.includes('reschedule-requested') ? `<div class="inline"><label>New appointment date<input type="date" id="rb-date" min="${day(now)}"></label>
+      <button class="act" id="rebook">New date booked</button> <span class="note">Stops the rebooking alert. The patient message shows the new date.</span></div>` : ''}
       <div class="inline"><label>Owner of this step<input id="own-name" list="staff" value="${esc(s.owner ?? '')}" placeholder="Assign someone" maxlength="60"></label>
       <button class="act alt" id="assign">Assign</button></div>
       <datalist id="staff">${names.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
@@ -218,6 +220,7 @@ function detail(c) {
   const tryPut = (fn, errSel) => { try { put(fn()); } catch (err) { $(errSel).textContent = err.message; } };
   $('#rec')?.addEventListener('click', () => tryPut(() => record(c, s.next, { at: at($('#rec-at').value), by: $('#rec-by').value, evidence: $('#rec-ev')?.value }), '#rec-err'));
   $('#missed')?.addEventListener('click', () => tryPut(() => missedVisit(c, at($('#rec-at').value), $('#rec-by').value || s.owner), '#rec-err'));
+  $('#rebook')?.addEventListener('click', () => tryPut(() => rebook(c, $('#rb-date').value, now, $('#rec-by').value || s.owner || s.role), '#rec-err'));
   $('#assign')?.addEventListener('click', () => tryPut(() => assign(c, s.next, $('#own-name').value), '#rec-err'));
   $('#send')?.addEventListener('click', () => put(record(c, 'notified', { at: now, by: 'Automated message (SMS/WhatsApp)' })));
   const reply = (t) => { if (!t.trim()) return; const r = patientReply(c, t, now); put(r.case); $('#reply-out').textContent = SAYS[r.effect]; document.body.dataset.lastReply = r.effect; };
