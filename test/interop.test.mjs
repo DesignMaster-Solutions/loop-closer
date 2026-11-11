@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseOru, fromFhir, triage, ingest, reconcile, feedHealth, toFhirBundle, parseMessage } from '../public/interop.mjs';
-import { status, worklist, close } from '../public/loop.mjs';
+import { status, worklist, close, alerts } from '../public/loop.mjs';
 import worker from '../src/worker.mjs';
 
 const NOW = '2026-11-15T09:00:00Z';
@@ -242,4 +242,21 @@ test('API: two results in one message are ingested together, a repeat inside it 
   const twice = `${oru()}\r${oru().split('\r')[3]}`;
   const j = await (await post(twice, 'application/hl7-v2')).json();
   assert.deepEqual(j.results.map((r) => r.action), ['opened', 'duplicate']);
+});
+
+test('ingest: a result the lab corrects after the case was closed still reaches a clinician', () => {
+  const [r] = parseOru(oru());
+  const a = ingest([], r, NOW, () => ROUTING);
+  const shut = [{ ...a.cases[0], events: [{ step: 'closed', at: NOW, by: 'Dr. Specialist', evidence: 'plan.pdf', outcome: 'done' }] }];
+  assert.equal(worklist(shut, NOW).length, 0);
+  const [c] = parseOru(oru({ value: 'Negative', st: 'C' }));
+  const b = ingest(shut, c, NOW, () => ROUTING);
+  assert.equal(b.action, 'corrected');
+  const s = status(b.cases[0], NOW);
+  assert.equal(s.stage, 'closed'); // the correction never reopens the case by itself
+  assert.deepEqual(s.flags, ['result-corrected']);
+  assert.equal(worklist(b.cases, NOW).length, 1);
+  assert.deepEqual(alerts(b.cases, NOW).map((x) => [x.to, x.kind]), [['Dr. PHC', 'result-corrected']]);
+  const seen = [{ ...b.cases[0], correction: { ...b.cases[0].correction, reviewed: true } }];
+  assert.equal(worklist(seen, NOW).length, 0);
 });

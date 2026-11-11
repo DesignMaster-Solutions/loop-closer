@@ -252,7 +252,7 @@ const HBA = JSON.stringify({ resourceType: 'Bundle', type: 'collection', meta: {
   { fullUrl: 'urn:r', resource: { resourceType: 'DiagnosticReport', status: 'final', identifier: [{ value: 'HBA-501' }], code: { coding: [{ system: 'http://loinc.org', code: '4548-4' }] }, subject: { reference: 'urn:p' }, issued: '2026-11-15T07:30:00+04:00', result: [{ reference: 'urn:o' }] } },
 ] }, null, 1);
 const MESSAGES = { hl7: oru('FIT-77120', FIT, 'CWE', 'Positive'), fhir: HBA, again: oru('FIT-77120', FIT, 'CWE', 'Positive'), corrected: oru('FIT-77120', FIT, 'CWE', 'Negative', 'C'), unknown: oru('LAB-9', '1234-5^Unlisted test^LN', 'ST', 'See report') };
-const SAID = { opened: 'Opened a case', duplicate: 'Same accession number: no second case', corrected: 'Flag raised on the open case. It stays open until a clinician reviews it', 'needs-review': 'No rule for this, so it is listed for a coordinator, never dropped', 'not-actionable': 'Recorded as not actionable' };
+const SAID = { opened: 'Opened a case', duplicate: 'Same order, test and finding: no second case', corrected: 'Flag raised on the case, even if it was already closed. It stays on the worklist until a clinician reviews it', 'needs-review': 'No rule for this, so it is listed for a coordinator, never dropped', 'not-actionable': 'Recorded as not actionable' };
 const seen = [], review = [];
 const showReview = () => {
   $('#review').innerHTML = review.length ? `<h2 style="margin:12px 0 4px">No case opened, a coordinator must look</h2>${review.map((x) => `<small class="note">${esc(x.accession)}: ${esc(x.why)}</small>`).join('<br>')}` : '';

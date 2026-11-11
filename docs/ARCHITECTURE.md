@@ -8,7 +8,7 @@ What exists today is marked **built**. What a pilot adds is marked **pilot**. No
 Lab / screening program        Loop Closer                              People
 HL7 v2 ORU^R01  ─┐      ┌─ parse and validate   (built)
 FHIR R4 report  ─┼─────▶│  triage by LOINC rule (built, table owned by the clinical lead)
-                 │      │  case per accession   (built)        ──▶ coordinator worklist (built)
+                 │      │  case per order + test (built)        ──▶ coordinator worklist (built)
 Lab's list ──────┘      │  reconcile + feed alarm (built)        ──▶ clinician closes with evidence (built)
                         │  case engine: owner, service level, flags (built)
                         │  patient message EN/AR (built; delivery: pilot)  ──▶ patient
@@ -22,7 +22,10 @@ Lab's list ──────┘      │  reconcile + feed alarm (built)       
 | Failure the program fears | What the code does | Test |
 |---|---|---|
 | A result never arrives | `reconcile` lists what the lab issued and we never saw; `feedHealth` alarms on a silent feed | `reconciliation finds...`, `a silent feed is an alarm` |
-| Duplicate case from a resend | One case per accession number | `the same message twice...` |
+| Duplicate case from a resend | One case per accession number and test; a second test on the same order is triaged on its own | `the same message twice...`, `another test on the same accession...` |
+| A value that changes without the correction status is hidden as a duplicate | Same flag as a correction | `a resend whose value changed...` |
+| A result cancelled before any case existed opens one | Opens nothing, and says why | `a cancelled result with no case...` |
+| A correction that lands after the case was closed is never seen | The case stays closed, the flag goes on the worklist and to the case owner | `a result the lab corrects after the case was closed...` |
 | A corrected result is ignored | A flag on the open case, ranked near the top of the worklist; never closes by itself | `a corrected or cancelled result...` |
 | An unknown test or unreadable value is treated as normal | Returned as `needs-review`, for a person | `unmapped and unreadable...` |
 | A hand-off nobody owns | `unassigned` flag from the moment the case opens | `a program with no routing...` |

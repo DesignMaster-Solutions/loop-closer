@@ -35,7 +35,11 @@ export function status(c, now) {
   const done = c.events.filter((e) => idx(e.step) >= 0).sort((a, b) => idx(a.step) - idx(b.step));
   const last = done.length ? done[done.length - 1] : { step: 'issued', at: c.issuedAt };
   const i = idx(last.step);
-  if (last.step === 'closed') return { stage: 'closed', next: null, owner: null, dueAt: null, flags: [] };
+  // A lab correction that lands after closure still needs a clinician: the case stays closed, the flag goes on the worklist.
+  if (last.step === 'closed') {
+    const late = c.correction && !c.correction.reviewed;
+    return { stage: 'closed', next: null, owner: null, dueAt: null, flags: late ? ['result-corrected', ...(c.urgency === 'urgent' ? ['escalate'] : [])] : [] };
+  }
   const next = STEPS[i + 1];
   const dueAt = new Date(new Date(last.at).getTime() + SLA_HOURS[c.urgency][next.id] * H).toISOString();
   const owner = c.owner?.[next.id] ?? null;
@@ -123,7 +127,7 @@ export function alerts(cases, now) {
   const out = [];
   for (const c of cases) {
     const s = status(c, now);
-    if (!s.next) continue;
+    if (!s.flags.length) continue;
     const head = c.owner?.closed;
     const send = (to, kind, text) => { if (to && !out.some((a) => a.caseId === c.id && a.to === to && a.kind === kind)) out.push({ caseId: c.id, to, kind, text: `${c.id} (${c.urgency}): ${text}` }); };
     const f = new Set(s.flags);
@@ -174,7 +178,7 @@ export function worklist(cases, now) {
     .map((c) => ({ c, s: status(c, now) }))
     .filter(({ s }) => s.flags.length)
     .sort((a, b) => Math.min(...a.s.flags.map((f) => RANK[f])) - Math.min(...b.s.flags.map((f) => RANK[f]))
-      || U[a.c.urgency] - U[b.c.urgency] || a.s.dueAt.localeCompare(b.s.dueAt));
+      || U[a.c.urgency] - U[b.c.urgency] || (a.s.dueAt ?? '').localeCompare(b.s.dueAt ?? ''));
 }
 
 // Plain-language next step for the patient. Clinical wording must be reviewed by the program.
