@@ -2,7 +2,7 @@
 // owner assignment, documented closure and patient replies that move the case.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { status, newCase, record, assign, missedVisit, rebook, alerts, close, patientReply, patientMessage } from '../public/loop.mjs';
+import { status, newCase, record, assign, missedVisit, rebook, alerts, close, patientReply, patientMessage, worklist } from '../public/loop.mjs';
 
 const T0 = '2026-11-10T08:00:00Z';
 const owners = { notified: 'Lab', acknowledged: 'Nav', confirmatory: 'GP', referred: 'GP', accepted: 'Spec', appointed: 'Spec', care: 'Spec', closed: 'Dr. Case' };
@@ -140,4 +140,22 @@ test('a patient question on a closed case still reaches someone once it waits pa
   assert.equal(s.stage, 'closed');
   assert.deepEqual(s.flags, ['consult-waiting', 'escalate']);
   assert.ok(alerts([c], '2026-11-20T13:00:00Z').some((a) => a.to === 'Dr. Case' && a.kind === 'consult-waiting'));
+});
+
+test('a new date beyond the service level for the urgency is flagged to the case owner until an earlier one is booked', () => {
+  let c = mine();
+  for (const [step, at] of [['notified', '2026-11-10T09:00:00Z'], ['acknowledged', '2026-11-10T10:00:00Z'], ['confirmatory', '2026-11-11T10:00:00Z'], ['referred', '2026-11-11T12:00:00Z'], ['accepted', '2026-11-12T08:00:00Z']]) {
+    c = record(c, step, { at, by: owners[step] });
+  }
+  c = assign(missedVisit(c, '2026-11-14T09:00:00Z', 'Spec'), 'closed', 'Dr. Case');
+  const far = rebook(c, '2026-12-20', '2026-11-15T09:00:00Z', 'Spec'); // urgent: 14 days allowed, booked 35 days out
+  const s = status(far, '2026-11-16T09:00:00Z');
+  assert.deepEqual(s.flags, ['booked-late', 'escalate']);
+  assert.equal(s.dueAt.slice(0, 10), '2026-12-20');
+  const a = alerts([far], '2026-11-16T09:00:00Z');
+  assert.ok(a.some((x) => x.to === 'Dr. Case' && x.kind === 'booked-late' && /2026-12-20/.test(x.text) && /14 days/.test(x.text)));
+  assert.equal(worklist([far], '2026-11-16T09:00:00Z').length, 1);
+  const sooner = rebook(far, '2026-11-24', '2026-11-16T10:00:00Z', 'Spec');
+  assert.deepEqual(status(sooner, '2026-11-16T11:00:00Z').flags, []);
+  assert.deepEqual(status(rebook(c, '2026-11-29', '2026-11-15T09:00:00Z', 'Spec'), '2026-11-16T09:00:00Z').flags, []); // the 14th day itself is inside
 });

@@ -56,7 +56,12 @@ export function status(c, now) {
     if (open.some((e) => e.step === 'reschedule')) flags.push('reschedule-requested');
     const from = open.map((e) => e.at).sort().at(-1);
     if (from) due = new Date(new Date(from).getTime() + REBOOK_HOURS[c.urgency] * H).toISOString();
-    else if (book >= 0) due = ev[book].for;
+    else if (book >= 0) {
+      due = ev[book].for;
+      // A booking further out than this urgency allows is a decision someone must own; the limit day itself is inside.
+      const limit = new Date(new Date(ev[book].at).getTime() + SLA_HOURS[c.urgency].appointed * H).setUTCHours(23, 59, 59, 999);
+      if (new Date(due) > limit) flags.push('booked-late');
+    }
   }
   if (!owner) flags.push('unassigned');
   if (new Date(now) > new Date(due)) flags.push('overdue');
@@ -151,6 +156,7 @@ export function alerts(cases, now) {
       send(s.owner ?? COORDINATOR, 'overdue', `"${s.nextLabel}" overdue since ${s.dueAt.slice(0, 10)}.`);
       if (f.has('escalate') && head !== s.owner) send(head, 'escalation', `urgent case, "${s.nextLabel}" overdue since ${s.dueAt.slice(0, 10)}. Escalated to you as case owner.`);
     }
+    if (f.has('booked-late')) send(head ?? COORDINATOR, 'booked-late', `new appointment on ${s.dueAt.slice(0, 10)} is beyond the ${SLA_HOURS[c.urgency].appointed / 24} days allowed for this urgency. Book an earlier date or answer for the wait.`);
     if (f.has('referral-rejected')) send(head ?? COORDINATOR, 'referral-rejected', 'referral was rejected. Re-refer or document why not.');
     if (f.has('consult-waiting')) send(head ?? COORDINATOR, 'consult-waiting', 'a question is waiting past its service level.');
     if (f.has('result-corrected')) send(head ?? COORDINATOR, 'result-corrected', 'the lab corrected the result. Review the case.');
@@ -182,7 +188,7 @@ export function answerConsult(c, i, answer, by, at) {
   return { ...c, consults: c.consults.map((q, k) => (k === i ? { ...q, answer, by, answeredAt: at } : q)) };
 }
 
-const RANK = { escalate: 0, 'result-corrected': 1, 'referral-rejected': 1, 'missed-visit': 1, 'consult-waiting': 2, 'reschedule-requested': 2, overdue: 3, unassigned: 4 };
+const RANK = { escalate: 0, 'result-corrected': 1, 'referral-rejected': 1, 'missed-visit': 1, 'booked-late': 1, 'consult-waiting': 2, 'reschedule-requested': 2, overdue: 3, unassigned: 4 };
 const U = { urgent: 0, priority: 1, routine: 2 };
 
 // The exception queue a coordinator works every morning: only cases that need a human.

@@ -40,7 +40,7 @@
   button.act { font:inherit; padding:6px 12px; border-radius:6px; border:1px solid var(--teal); background:var(--teal); color:#fff; cursor:pointer; }
   button.act.alt { background:#fff; color:var(--teal); }
   button.act[disabled] { opacity:.45; cursor:not-allowed; }
-  .tag.missed-visit { background:#fde8e6; color:var(--red); } .tag.reschedule-requested { background:#fdf0e1; color:var(--amber); }
+  .tag.missed-visit { background:#fde8e6; color:var(--red); } .tag.reschedule-requested, .tag.booked-late { background:#fdf0e1; color:var(--amber); }
   .bar { display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; padding:0 24px 14px; }
   .bar b { font-variant-numeric:tabular-nums; }
   #own, #alerts { margin:0 24px 16px; }
@@ -190,7 +190,7 @@ function detail(c) {
       ${s.next === 'care' ? '<label>Evidence document<input id="rec-ev" placeholder="e.g. plan.pdf" maxlength="80"></label>' : ''}
       <button class="act" id="rec">Record</button>
       ${s.next === 'appointed' ? '<button class="act alt" id="missed">Patient did not attend</button>' : ''}</div>
-      ${s.flags.includes('missed-visit') || s.flags.includes('reschedule-requested') ? `<div class="inline"><label>New appointment date<input type="date" id="rb-date" min="${day(now)}"></label>
+      ${['missed-visit', 'reschedule-requested', 'booked-late'].some((f) => s.flags.includes(f)) ? `<div class="inline"><label>New appointment date<input type="date" id="rb-date" min="${day(now)}"></label>
       <button class="act" id="rebook">New date booked</button> <span class="note">Stops the rebooking alert. The patient message shows the new date.</span></div>` : ''}
       <div class="inline"><label>Owner of this step<input id="own-name" list="staff" value="${esc(s.owner ?? '')}" placeholder="Assign someone" maxlength="60"></label>
       <button class="act alt" id="assign">Assign</button></div>
