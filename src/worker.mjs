@@ -20,9 +20,11 @@ export default {
     // This host is a public demo: it must never see a real result, even for a moment.
     if (results.some((r) => !r.test)) return outcome(422, 'security', 'The public demo accepts test data only: MSH-11 = T or D (HL7 v2), or meta.tag HTEST (FHIR). A pilot runs inside the program environment.');
     const now = new Date().toISOString();
+    let cases = []; // one message, one run: a repeat inside it is a duplicate, a second test gets its own case
     return Response.json({ results: results.map((r) => {
-      const { cases, action, id, reason } = ingest([], r, now);
-      const c = cases.find((x) => x.id === id);
+      const { cases: next, action, id, reason } = ingest(cases, r, now);
+      cases = next;
+      const c = action === 'duplicate' ? null : cases.find((x) => x.id === id);
       return { result: r, action, reason, ...(c ? { case: c, bundle: toFhirBundle(c, now) } : {}) };
     }) });
   },

@@ -119,18 +119,23 @@ export function parseMessage(text) {
   return parseOru(s);
 }
 
-// One case per accession number, whatever the feed resends. Corrections raise a flag for a person: nothing closes itself.
+// One case per accession number and test, whatever the feed resends. Corrections raise a flag for a person: nothing closes itself.
 export function ingest(cases, result, now, routing = () => ({})) {
-  const open = cases.find((c) => c.accession === result.accession);
+  const open = cases.find((c) => c.accession === result.accession && (!c.loinc || c.loinc === result.loinc));
   if (open) {
-    if (result.status !== 'corrected' && result.status !== 'cancelled') return { cases, action: 'duplicate', id: open.id };
-    const next = { ...open, correction: { status: result.status, value: result.value, at: result.at ?? now, reviewed: false } };
+    // A lab that resends a different value without the correction status (preliminary then final) is still a change a person must see.
+    const changed = result.status === 'corrected' || result.status === 'cancelled' || triage(result).finding !== open.finding;
+    if (!changed) return { cases, action: 'duplicate', id: open.id };
+    const next = { ...open, correction: { status: result.status === 'cancelled' ? 'cancelled' : 'corrected', value: result.value, at: result.at ?? now, reviewed: false } };
     return { cases: cases.map((c) => (c === open ? next : c)), action: 'corrected', id: open.id };
   }
+  if (result.status === 'cancelled') return { cases, action: 'not-actionable', reason: 'cancelled by the lab before any case was opened' };
   const t = triage(result);
   if (t.unmapped || t.unreadable) return { cases, action: 'needs-review', reason: t.rule };
   if (!t.actionable) return { cases, action: 'not-actionable', reason: t.rule };
-  const c = { id: `C-${result.accession}`, accession: result.accession, patient: result.patient, lang: result.lang, urgency: t.urgency, program: t.program,
+  // A second actionable test on the same order gets its own case and its own id.
+  const id = cases.some((c) => c.accession === result.accession) ? `C-${result.accession}-${result.loinc}` : `C-${result.accession}`;
+  const c = { id, accession: result.accession, patient: result.patient, lang: result.lang, urgency: t.urgency, program: t.program,
     finding: t.finding, confirm: t.confirm, specialist: t.specialist, rule: t.rule, loinc: result.loinc, display: result.display, test: result.test,
     issuedAt: result.at ?? now, events: [], owner: routing(t.program) };
   return { cases: [...cases, c], action: 'opened', id: c.id, reason: t.rule };

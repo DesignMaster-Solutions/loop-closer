@@ -208,3 +208,38 @@ test('parseMessage picks the parser by content', () => {
   assert.equal(parseMessage(oru())[0].source, 'hl7v2');
   assert.equal(parseMessage(JSON.stringify(fhirHba1c()))[0].source, 'fhir');
 });
+
+test('ingest: a cancelled result with no case opens nothing', () => {
+  const [x] = parseOru(oru({ st: 'X' }));
+  const a = ingest([], x, NOW, () => ROUTING);
+  assert.equal(a.action, 'not-actionable');
+  assert.equal(a.cases.length, 0);
+});
+
+test('ingest: a resend whose value changed without the correction status still raises the flag', () => {
+  const [p] = parseOru(oru({ st: 'P' }));
+  const a = ingest([], p, NOW, () => ROUTING);
+  const [f] = parseOru(oru({ value: 'Negative' }));
+  const b = ingest(a.cases, f, NOW, () => ROUTING);
+  assert.equal(b.action, 'corrected');
+  assert.ok(status(b.cases[0], NOW).flags.includes('result-corrected'));
+  const h = ingest([], fromFhir(fhirHba1c(7))[0], NOW, () => ROUTING);
+  assert.equal(ingest(h.cases, fromFhir(fhirHba1c(11))[0], NOW, () => ROUTING).action, 'corrected');
+  assert.equal(ingest(h.cases, fromFhir(fhirHba1c(7))[0], NOW, () => ROUTING).action, 'duplicate');
+});
+
+test('ingest: another test on the same accession is triaged on its own, never swallowed as a duplicate', () => {
+  const a = ingest([], fromFhir(fhirHba1c(9))[0], NOW, () => ROUTING);
+  const glucose = { ...fromFhir(fhirHba1c(9))[0], loinc: '2345-7', value: 180 };
+  assert.equal(ingest(a.cases, glucose, NOW, () => ROUTING).action, 'needs-review');
+  const fitToo = { ...parseOru(oru())[0], accession: 'HBA-501' };
+  const b = ingest(a.cases, fitToo, NOW, () => ROUTING);
+  assert.equal(b.action, 'opened');
+  assert.equal(new Set(b.cases.map((c) => c.id)).size, 2);
+});
+
+test('API: two results in one message are ingested together, a repeat inside it is a duplicate', async () => {
+  const twice = `${oru()}\r${oru().split('\r')[3]}`;
+  const j = await (await post(twice, 'application/hl7-v2')).json();
+  assert.deepEqual(j.results.map((r) => r.action), ['opened', 'duplicate']);
+});
