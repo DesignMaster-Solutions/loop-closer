@@ -1,7 +1,7 @@
 // Writes the sample messages and the FHIR bundles that docs/fhir-validation.txt validates. Run: node scripts/samples.mjs
 import { writeFileSync } from 'node:fs';
 import { parseMessage, ingest, toFhirBundle } from '../public/interop.mjs';
-import { close, requestConsult } from '../public/loop.mjs';
+import { close, requestConsult, missedVisit, rebook } from '../public/loop.mjs';
 import { routingFor } from '../public/cases.mjs';
 
 const NOW = '2026-11-15T09:00:00Z';
@@ -33,3 +33,7 @@ const closed = close(step(base, ['notified', 'acknowledged', 'confirmatory', 're
 write('bundle-midway.json', JSON.stringify(toFhirBundle(midway, NOW), null, 2));
 write('bundle-referral-rejected.json', JSON.stringify(toFhirBundle(rejected, NOW), null, 2));
 write('bundle-closed.json', JSON.stringify(toFhirBundle(closed, NOW), null, 2));
+// A missed visit, a new date, then that date moved earlier: three Appointments (noshow, cancelled, booked).
+const accepted = step(base, ['notified', 'acknowledged', 'confirmatory', 'referred', 'accepted']);
+const rebooked = rebook(rebook(missedVisit(accepted, '2026-11-09T09:00:00Z', base.owner.appointed), '2026-11-20', '2026-11-10T09:00:00Z', base.owner.appointed), '2026-11-18', '2026-11-11T09:00:00Z', base.owner.appointed);
+write('bundle-missed-rebooked.json', JSON.stringify(toFhirBundle(rebooked, NOW), null, 2));

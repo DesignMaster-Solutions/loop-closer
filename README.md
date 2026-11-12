@@ -38,7 +38,7 @@ Results come in and case state goes out in the formats screening programs alread
 - **In:** HL7 v2 `ORU^R01` and FHIR R4 `DiagnosticReport` with its `Observation`. Three programs mapped by LOINC: FIT (29771-3, 57905-2), mammography (24606-6, BI-RADS), HbA1c (4548-4). The thresholds are an explicit table the program's clinical lead owns (`RULES`).
 - **One case per accession number and test.** The lab resending a message opens nothing new. A corrected or cancelled result raises a flag on the open case for a clinician: nothing closes itself. The same flag goes up when a resend carries a different value without the correction status (a preliminary that changes at final). A result cancelled before any case existed opens nothing, and a second test on the same order is triaged on its own.
 - **Nothing vanishes.** A code with no rule or a value the rule cannot read goes to a person, never to "normal". `reconcile` compares the lab's list with what arrived, and `feedHealth` raises an alarm when the feed goes silent.
-- **Out:** one idempotent FHIR R4 transaction per case: `Task` per step (owner, due date, flags), `ServiceRequest`, `Communication`, `Encounter`, `CarePlan`, `DocumentReference`, `Provenance` for the clinician's sign-off. Patients travel as a pseudonym.
+- **Out:** one idempotent FHIR R4 transaction per case: `Task` per step (owner, due date, flags), `ServiceRequest`, `Communication`, `Appointment` for each missed visit and each new date (`noshow`, `cancelled` when replaced, `booked`, `fulfilled`), `Encounter`, `CarePlan`, `DocumentReference`, `Provenance` for the clinician's sign-off. Patients travel as a pseudonym.
 
 Proof, reproducible from this repo:
 

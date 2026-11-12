@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseOru, fromFhir, triage, ingest, reconcile, feedHealth, toFhirBundle, parseMessage } from '../public/interop.mjs';
-import { status, worklist, close, alerts } from '../public/loop.mjs';
+import { status, worklist, close, alerts, missedVisit, rebook } from '../public/loop.mjs';
 import worker from '../src/worker.mjs';
 
 const NOW = '2026-11-15T09:00:00Z';
@@ -259,4 +259,33 @@ test('ingest: a result the lab corrects after the case was closed still reaches 
   assert.deepEqual(alerts(b.cases, NOW).map((x) => [x.to, x.kind]), [['Dr. PHC', 'result-corrected']]);
   const seen = [{ ...b.cases[0], correction: { ...b.cases[0].correction, reviewed: true } }];
   assert.equal(worklist(seen, NOW).length, 0);
+});
+
+test('FHIR export: a missed visit and each new date travel as Appointments (noshow, cancelled, booked, fulfilled)', () => {
+  const [r] = parseOru(oru());
+  const base = done(ingest([], r, '2026-11-01T09:00:00Z', () => ROUTING).cases[0], ['notified', 'acknowledged', 'confirmatory', 'referred', 'accepted']);
+  const d = (n) => new Date(Date.parse(base.issuedAt) + n * 864e5).toISOString();
+  const appts = (c) => toFhirBundle(c, d(9)).entry.map((e) => e.resource).filter((x) => x.resourceType === 'Appointment');
+  assert.equal(appts(base).length, 0);
+  const missed = missedVisit(base, d(6), 'Coordinator');
+  const booked = rebook(missed, d(12).slice(0, 10), d(7), 'Coordinator');
+  let a = appts(booked);
+  assert.deepEqual(a.map((x) => x.status), ['noshow', 'booked']);
+  assert.equal(a[1].start, `${d(12).slice(0, 10)}T00:00:00.000Z`);
+  assert.equal(a[1].created, d(7));
+  const ids = new Set(toFhirBundle(booked, d(9)).entry.map((e) => `${e.resource.resourceType}/${e.resource.id}`));
+  for (const x of a) {
+    assert.ok(x.start && x.end, 'FHIR app-3: noshow and booked need start and end');
+    assert.match(x.participant[0].actor.reference, /^Patient\//);
+    assert.ok(ids.has(x.participant[0].actor.reference) && ids.has(x.basedOn[0].reference));
+    assert.match(x.basedOn[0].reference, /^ServiceRequest\//);
+  }
+  const moved = rebook(booked, d(11).slice(0, 10), d(8), 'Coordinator');
+  assert.deepEqual(appts(moved).map((x) => x.status), ['noshow', 'cancelled', 'booked']);
+  // The booked visit that the patient then missed is the same Appointment, not a second one.
+  assert.deepEqual(appts(missedVisit(moved, d(11), 'Coordinator')).map((x) => x.status), ['noshow', 'cancelled', 'noshow']);
+  const seen = { ...moved, events: [...moved.events, { step: 'appointed', at: d(11), by: 'Dr. K' }] };
+  a = appts(seen);
+  assert.deepEqual(a.map((x) => x.status), ['noshow', 'cancelled', 'fulfilled']);
+  assert.equal(new Set(a.map((x) => x.id)).size, 3);
 });

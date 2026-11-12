@@ -199,6 +199,22 @@ export function toFhirBundle(c, now) {
   (c.consults ?? []).forEach((q, i) => add({ resourceType: 'Communication', id: `lc-com-${key}-q${i}`, status: q.answer ? 'completed' : 'in-progress', subject: patient, about: [report], sent: q.at,
     category: [{ text: q.kind }], sender: { display: q.from }, recipient: [{ display: q.to }], payload: [{ contentString: q.question }, ...(q.answer ? [{ contentString: q.answer }] : [])] }));
   const seen = ev('appointed');
+  // Missed visits and new dates as Appointments. A booking that is replaced is cancelled, one the patient then
+  // misses becomes the noshow, and the one the patient attended is fulfilled. A miss with no booking on file
+  // carries the time it was recorded: the original slot was never given to us.
+  let cur = null;
+  c.events.forEach((e, i) => {
+    if (e.step !== 'missed' && e.step !== 'rebooked') return;
+    const open = cur?.status === 'booked';
+    if (e.step === 'missed' && open) { cur.status = 'noshow'; cur = null; return; }
+    if (open) cur.status = 'cancelled';
+    const day = e.step === 'rebooked' ? { start: `${e.for.slice(0, 10)}T00:00:00.000Z`, end: e.for } : { start: e.at, end: e.at };
+    cur = { resourceType: 'Appointment', id: `lc-appt-${key}-${i}`, status: e.step === 'missed' ? 'noshow' : 'booked', ...day, created: e.at, basedOn: [referral],
+      description: e.step === 'missed' ? `Patient did not attend (recorded by ${e.by ?? 'the program'})` : `New date booked by ${e.by ?? 'the program'}`,
+      participant: [{ actor: patient, status: 'accepted' }] };
+    add(cur);
+  });
+  if (seen && cur?.status === 'booked') cur.status = 'fulfilled';
   if (seen) add({ resourceType: 'Encounter', id: `lc-enc-${key}`, status: 'finished', class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB', display: 'ambulatory' },
     subject: patient, basedOn: [referral], period: { start: seen.at }, ...(seen.by ? { participant: [{ individual: { display: seen.by } }] } : {}) });
   const care = ev('care');

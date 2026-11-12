@@ -48,3 +48,12 @@ Success: 0 errors, 4 warnings, 0 notes
 ----------------------------------------------------------------------------------
 
 Done. Times: Loading: 00:32.552, validation: 00:06.817 (#4). Max Memory = 3Gb
+
+==================================================================================
+Added 2026-11-12T04:55Z, same validator (7.0.3, FHIR R4 4.0.1): the bundle with a missed visit and two new dates
+java -jar validator_cli.jar -version 4.0.1 -language en docs/samples/bundle-missed-rebooked.json
+
+-- docs/samples/bundle-missed-rebooked.json ----------------------------------------
+Success: 0 errors, 8 warnings, 0 notes
+  The 8 warnings are the same one as above, once per Task: CodeSystem 'urn:loop-closer:step' is ours and has no
+  published definition. None is on the three Appointment resources (noshow, cancelled, booked).
