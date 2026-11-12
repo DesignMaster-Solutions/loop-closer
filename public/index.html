@@ -214,7 +214,7 @@ function detail(c) {
       <p class="err" id="close-err" role="alert"></p>`
       : (() => { const z = c.events.find((x) => x.step === 'closed'); return `<p><b>Closed</b> ${day(z.at)} by ${esc(z.by)}. Evidence: ${esc(z.evidence ?? c.events.find((x) => x.step === 'care')?.evidence ?? '')}.${z.outcome ? ` Outcome: ${esc(z.outcome)}.` : ''}</p>`; })()}
     ${c.correction && !c.correction.reviewed ? `<p><b>The lab ${c.correction.status === 'cancelled' ? 'cancelled' : 'corrected'} this result${c.correction.status === 'corrected' ? ` to "${esc(c.correction.value)}"` : ''}.</b> A clinician decides what happens to the case. <button class="act" id="reviewed">Mark reviewed by clinician</button></p>` : ''}
-    <p><button class="act alt" id="export">Download this case as a FHIR R4 Bundle</button> <span class="note">Tasks, referral, messages, encounter, care plan and provenance. Passes the HL7 validator.</span></p>`;
+    <p><button class="act alt" id="export">Download this case as a FHIR R4 Bundle</button> <span class="note">Tasks, referral, messages, missed visits and new dates, encounter, care plan and provenance. Passes the HL7 validator.</span></p>`;
   const put = (n) => { cases[cases.indexOf(c)] = n; render(c.id); };
   const at = (v) => v ? `${v}T${now.slice(11)}` : now;
   const tryPut = (fn, errSel) => { try { put(fn()); } catch (err) { $(errSel).textContent = err.message; } };
