@@ -124,6 +124,24 @@
       "say": "At the appointment step, replying three asks for a new date, and the step owner gets a reschedule alert. Replying one confirms attendance."
     },
     {
+      "title": "The new date is checked too",
+      "lines": [
+        "Booking the new date stops",
+        "the rebooking alert.",
+        "",
+        "Too far out for the urgency?",
+        "Recorded, and flagged:",
+        "book an earlier date or",
+        "answer for the wait.",
+        "",
+        "Added 11 November."
+      ],
+      "shots": [
+        "shots/v12-booked-late.png"
+      ],
+      "say": "Added this week: when the specialist books the new date, the rebooking alert stops and the patient's message shows that date. If the date is further out than the urgency allows, here beyond ninety days for a routine case, it is still recorded, and an alert asks for an earlier date or for someone to answer for the wait."
+    },
+    {
       "title": "Closure: clinician, evidence, outcome",
       "lines": [
         "The plan step needs",
