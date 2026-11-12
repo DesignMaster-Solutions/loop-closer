@@ -12,3 +12,15 @@ read back   Task lc-C-FIT-77120-closed completed Dr. M. Al Nuaimi (PHC Khalifa C
 tasks       8
 second post {"http":200,"type":"transaction-response","entries":17,"codes":{"200":17}}
 tasks again 8
+
+Missed visit and new date (bundle-missed-rebooked, the same patient mid-way; `node scripts/roundtrip.mjs https://hapi.fhir.org/baseR4 bundle-missed-rebooked`).
+The three Appointments are created once, read back with the status and day we sent, and the second post duplicates nothing:
+server https://hapi.fhir.org/baseR4 bundle-missed-rebooked 2026-11-12T05:16:35.259Z
+first post  {"http":200,"type":"transaction-response","entries":16,"codes":{"200":13,"201":3}}
+read back   Task lc-C-FIT-77120-closed draft Dr. M. Al Nuaimi (PHC Khalifa City) version 3
+read back   Appointment lc-appt-C-FIT-77120-5 noshow 2026-11-09T09:00:00.000Z basedOn ServiceRequest/lc-ref-C-FIT-77120 version 1
+read back   Appointment lc-appt-C-FIT-77120-6 cancelled 2026-11-20T00:00:00.000Z basedOn ServiceRequest/lc-ref-C-FIT-77120 version 1
+read back   Appointment lc-appt-C-FIT-77120-7 booked 2026-11-18T00:00:00.000Z basedOn ServiceRequest/lc-ref-C-FIT-77120 version 1
+tasks       8
+second post {"http":200,"type":"transaction-response","entries":16,"codes":{"200":16}}
+tasks again 8

@@ -44,7 +44,7 @@ Proof, reproducible from this repo:
 
 - `node scripts/samples.mjs` writes the sample messages and bundles to [docs/samples/](docs/samples/).
 - [docs/fhir-validation.txt](docs/fhir-validation.txt): output of the official HL7 FHIR Validator on those bundles.
-- [docs/fhir-roundtrip.txt](docs/fhir-roundtrip.txt): `node scripts/roundtrip.mjs` against the public HAPI FHIR R4 server. 17 resources created, read back, and posted again with no duplicates. That run also found a real bug our own tests missed (a `urn:` fullUrl the server refused), fixed in this repo.
+- [docs/fhir-roundtrip.txt](docs/fhir-roundtrip.txt): `node scripts/roundtrip.mjs` against the public HAPI FHIR R4 server. 17 resources created, read back, and posted again with no duplicates. That run also found a real bug our own tests missed (a `urn:` fullUrl the server refused), fixed in this repo. The second run in that file posts the missed-visit bundle: the server stores the three Appointments (noshow, cancelled, booked) and reads them back unchanged.
 - [docs/bench.txt](docs/bench.txt): `node scripts/bench.mjs`. On one laptop core, over 10,000 lab messages per second, and a 100,000-case worklist in under 5 seconds.
 
 Try the API with the sample message. The public demo stores nothing and refuses anything not marked as test data (`MSH-11` = T or D, FHIR `meta.tag` HTEST):
